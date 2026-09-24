@@ -15,6 +15,7 @@ eval "$(./ops/env-export.py .env)"
 
 COMPOSE=(docker compose -p "${PROJECT:-media-gateway}" --env-file .env --env-file versions.env -f compose.yml)
 
+restic unlock >/dev/null 2>&1 || true
 restic snapshots "$SNAPSHOT" >/dev/null
 
 staging="$(mktemp -d ./restore.XXXXXX)"

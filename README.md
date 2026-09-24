@@ -72,12 +72,21 @@ prints its last log lines.
 - The disabled `tmdb-addon` profile requires MongoDB with its pinned release. It ships disabled;
   AIOStreams uses its public metadata fallback.
 - Some scraper providers block datacenter IP ranges, so results vary by hosting network.
+- Stream links from the public Comet and StremThru instances redirect through those services to
+  the debrid CDN, so playback depends on them staying up. Self-hosting StremThru removes that.
+- Players choose the audio track, not the server: set the preferred audio language in the client
+  (for example English in Odin), otherwise a release whose first track is another language plays
+  that track.
+- AIOStreams rate limits stay enabled (login is capped at 10 attempts per 5 minutes per IP).
+  Forwarded client IPs are trusted from private networks only, which covers the tunnel container.
 
 ## Backups
 
 The user-level `media-gateway-backup.timer` runs nightly at 02:30. It stops AIOStreams, snapshots
 `data/aiostreams` to the configured restic repository, restarts the service, and retains 7 daily,
 4 weekly, and 6 monthly snapshots. Deployments also keep the latest five pre-upgrade snapshots.
+Backup and restore clear stale restic locks first, so an interrupted run never blocks the next
+night's backup.
 
 List snapshots with `make restore-check`. Restore on the host with
 `./backup/restore.sh <snapshot-id>`. The displaced data remains under `restore-rollback/` until you
