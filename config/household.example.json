@@ -1,0 +1,7 @@
+{
+  "users": [
+    {"name": "Alex", "slug": "alex", "admin": true, "color": "e11d48"},
+    {"name": "Sam", "slug": "sam", "color": "7c3aed"},
+    {"name": "Jordan", "slug": "jordan", "color": "2563eb"}
+  ]
+}

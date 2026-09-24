@@ -1,0 +1,457 @@
+{
+  "ageRangeTypes": [
+    "usenet"
+  ],
+  "appliedTemplates": [
+    {
+      "id": "builtin.debrid-starter",
+      "version": "1.0.1"
+    }
+  ],
+  "autoPlay": {
+    "attributes": [
+      "service",
+      "proxied",
+      "resolution",
+      "quality",
+      "encode",
+      "audioTags",
+      "visualTags",
+      "languages",
+      "releaseGroup"
+    ]
+  },
+  "cacheAndPlay": {
+    "enabled": true,
+    "streamTypes": [
+      "usenet"
+    ]
+  },
+  "catalogModifications": [],
+  "checkOwned": true,
+  "deduplicator": {
+    "cached": "single_result",
+    "enabled": true,
+    "keys": [
+      "filename",
+      "infoHash"
+    ],
+    "multiGroupBehaviour": "aggressive",
+    "p2p": "single_result",
+    "uncached": "per_service"
+  },
+  "digitalReleaseFilter": {
+    "addons": [],
+    "enabled": true,
+    "requestTypes": [],
+    "tolerance": 0
+  },
+  "enableSeadex": true,
+  "episodeTitleMatching": {
+    "addons": [],
+    "requestTypes": []
+  },
+  "excludeCachedFromAddons": [],
+  "excludeCachedFromServices": [],
+  "excludeCachedFromStreamTypes": [],
+  "excludeUncachedFromAddons": [],
+  "excludeUncachedFromServices": [],
+  "excludeUncachedFromStreamTypes": [],
+  "excludedAudioTags": [],
+  "excludedEncodes": [],
+  "excludedLanguages": [
+    "Russian",
+    "Portuguese",
+    "Arabic",
+    "Portuguese (Brazil)",
+    "Italian",
+    "German",
+    "French",
+    "Spanish"
+  ],
+  "excludedQualities": [
+    "CAM",
+    "SCR",
+    "TS",
+    "TC"
+  ],
+  "excludedResolutions": [],
+  "excludedStreamExpressions": [
+    {
+      "enabled": true,
+      "expression": "queryType == 'anime.series' ? resolution(streams, '2160p') : []"
+    }
+  ],
+  "excludedStreamTypes": [],
+  "excludedSubtitles": [],
+  "excludedVisualTags": [
+    "3D"
+  ],
+  "formatter": {
+    "definitions": {
+      "custom": {
+        "description": "",
+        "name": ""
+      }
+    },
+    "id": "prism"
+  },
+  "hideErrorsForResources": [],
+  "includedAudioTags": [],
+  "includedEncodes": [],
+  "includedLanguages": [],
+  "includedQualities": [],
+  "includedResolutions": [],
+  "includedStreamTypes": [],
+  "includedVisualTags": [],
+  "languageInference": {
+    "enabled": true,
+    "sources": []
+  },
+  "posterService": "rpdb",
+  "precacheNextEpisode": false,
+  "precacheSelector": "count(cached(streams)) == 0 ? uncached(streams) : []",
+  "precacheSingleStream": true,
+  "preferredAudioTags": [],
+  "preferredEncodes": [],
+  "preferredLanguages": [
+    "English"
+  ],
+  "preferredQualities": [
+    "BluRay REMUX",
+    "BluRay",
+    "WEB-DL",
+    "WEBRip",
+    "HDRip",
+    "HC HD-Rip",
+    "DVD REMUX",
+    "DVDRip",
+    "HDTV",
+    "CAM",
+    "TS",
+    "TC",
+    "SCR",
+    "Unknown"
+  ],
+  "preferredResolutions": [
+    "1080p",
+    "2160p",
+    "1440p",
+    "720p"
+  ],
+  "preferredStreamTypes": [],
+  "preferredSubtitles": [
+    "English"
+  ],
+  "preferredVisualTags": [],
+  "presets": [
+    {
+      "enabled": true,
+      "instanceId": "tmd",
+      "options": {
+        "language": "en-US",
+        "name": "The Movie Database",
+        "provideImdbId": true,
+        "resources": [
+          "catalog",
+          "meta"
+        ],
+        "timeout": 7000
+      },
+      "type": "tmdb-addon"
+    },
+    {
+      "enabled": false,
+      "instanceId": "80c",
+      "options": {
+        "name": "Torrentio",
+        "providers": [],
+        "resources": [
+          "stream"
+        ],
+        "timeout": 5000,
+        "useMultipleInstances": false
+      },
+      "type": "torrentio"
+    },
+    {
+      "enabled": true,
+      "instanceId": "c9f",
+      "options": {
+        "includeP2P": false,
+        "mediaTypes": [],
+        "name": "Comet",
+        "removeTrash": true,
+        "resources": [
+          "stream"
+        ],
+        "timeout": 7000
+      },
+      "type": "comet"
+    },
+    {
+      "enabled": true,
+      "instanceId": "29d",
+      "options": {
+        "includeP2P": false,
+        "mediaTypes": [],
+        "name": "StremThru Torz",
+        "resources": [
+          "stream"
+        ],
+        "timeout": 7000,
+        "useMultipleInstances": false
+      },
+      "type": "stremthruTorz"
+    },
+    {
+      "enabled": true,
+      "instanceId": "137",
+      "options": {
+        "mediaTypes": [
+          "anime"
+        ],
+        "name": "AnimeTosho",
+        "timeout": 7000,
+        "useMultipleInstances": false
+      },
+      "type": "animetosho"
+    },
+    {
+      "enabled": false,
+      "instanceId": "534",
+      "options": {
+        "mediaTypes": [],
+        "name": "Knaben",
+        "timeout": 7000,
+        "useMultipleInstances": false
+      },
+      "type": "knaben"
+    },
+    {
+      "enabled": true,
+      "instanceId": "224",
+      "options": {
+        "certificationLevelsFilter": [],
+        "contributorStreams": false,
+        "downloadViaBrowser": false,
+        "enableWatchlistCatalogs": false,
+        "mediaTypes": [],
+        "name": "MediaFusion",
+        "nudityFilter": [],
+        "resources": [
+          "stream",
+          "catalog",
+          "meta"
+        ],
+        "timeout": 7000,
+        "useCachedResultsOnly": true
+      },
+      "type": "mediafusion"
+    },
+    {
+      "enabled": true,
+      "instanceId": "osv",
+      "options": {
+        "name": "OpenSubtitles v3",
+        "resources": [
+          "subtitles"
+        ],
+        "timeout": 4000
+      },
+      "type": "opensubtitles"
+    }
+  ],
+  "proxy": {
+    "id": "builtin",
+    "proxiedAddons": [],
+    "proxiedServices": []
+  },
+  "regexOverrides": [],
+  "requiredAudioTags": [],
+  "requiredEncodes": [],
+  "requiredLanguages": [],
+  "requiredQualities": [],
+  "requiredResolutions": [],
+  "requiredStreamTypes": [],
+  "requiredVisualTags": [],
+  "seasonEpisodeMatching": {
+    "addons": [],
+    "enabled": true,
+    "requestTypes": [
+      "movie",
+      "series"
+    ]
+  },
+  "seederRangeTypes": [],
+  "services": [
+    {
+      "credentials": {},
+      "enabled": true,
+      "id": "torbox"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "realdebrid"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "alldebrid"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "premiumize"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "debridlink"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "stremio_nntp"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "nzbdav"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "aiostreams"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "altmount"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "offcloud"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "putio"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "easynews"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "easydebrid"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "debrider"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "pikpak"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "seedr"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "stremthru_newz"
+    },
+    {
+      "credentials": {},
+      "enabled": false,
+      "id": "torrin"
+    }
+  ],
+  "size": {
+    "global": {
+      "anime": [
+        0,
+        3000000000
+      ],
+      "movies": [
+        0,
+        6000000000
+      ],
+      "series": [
+        0,
+        3000000000
+      ]
+    }
+  },
+  "sortCriteria": {
+    "global": [
+      {
+        "direction": "desc",
+        "key": "cached"
+      },
+      {
+        "direction": "desc",
+        "key": "resolution"
+      },
+      {
+        "direction": "desc",
+        "key": "language"
+      },
+      {
+        "direction": "desc",
+        "key": "library"
+      },
+      {
+        "direction": "desc",
+        "key": "regexPatterns"
+      },
+      {
+        "direction": "desc",
+        "key": "streamType"
+      },
+      {
+        "direction": "desc",
+        "key": "visualTag"
+      },
+      {
+        "direction": "desc",
+        "key": "audioTag"
+      },
+      {
+        "direction": "desc",
+        "key": "audioChannel"
+      },
+      {
+        "direction": "desc",
+        "key": "encode"
+      },
+      {
+        "direction": "desc",
+        "key": "size"
+      }
+    ]
+  },
+  "titleMatching": {
+    "addons": [],
+    "enabled": true,
+    "requestTypes": [
+      "movie",
+      "series"
+    ],
+    "similarityThreshold": 0.85
+  },
+  "yearMatching": {
+    "addons": [],
+    "enabled": true,
+    "requestTypes": []
+  }
+}

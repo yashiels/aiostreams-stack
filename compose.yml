@@ -1,0 +1,72 @@
+networks:
+  media-gateway:
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  aiostreams:
+    image: ${AIOSTREAMS_IMAGE}
+    user: "0:0"
+    restart: always
+    mem_limit: 1g
+    cpus: 1
+    logging: *logging
+    environment:
+      BASE_URL: ${AIOSTREAMS_PUBLIC_URL}
+      SECRET_KEY: ${AIOSTREAMS_SECRET_KEY}
+      DATABASE_URI: sqlite://./data/db.sqlite
+      AIOSTREAMS_AUTH: ${AIOSTREAMS_AUTH}
+      AIOSTREAMS_AUTH_REQUIRED: "true"
+      CONFIG_ACCESS_KEY: ${AIOSTREAMS_CONFIG_ACCESS_KEY}
+      DEFAULT_SERVICE_CREDENTIALS: torbox.apiKey=${TORBOX_API_KEY}
+      TMDB_API_KEY: ${TMDB_API_KEY}
+      DISABLE_RATE_LIMITS: "true"
+      JELLYFIN_ENABLED: "true"
+      JELLYFIN_MAX_PERSONAS: "10"
+      JELLYFIN_MAX_VERSIONS: "10"
+      JELLYFIN_RESOLVE_ON_OPEN: user
+    volumes:
+      - ./data/aiostreams:/app/data
+    networks: [media-gateway]
+    healthcheck:
+      test: ["CMD", "/nodejs/bin/node", "/app/scripts/healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 600s
+
+  tmdb-addon:
+    image: ${TMDB_ADDON_IMAGE}
+    profiles: [tmdb]
+    restart: always
+    mem_limit: 512m
+    cpus: 0.5
+    logging: *logging
+    environment:
+      TMDB_API: ${TMDB_API_KEY}
+      PORT: "1337"
+      HOST_NAME: http://tmdb-addon:1337
+      NODE_ENV: production
+    networks: [media-gateway]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:1337/manifest.json').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  cloudflared:
+    image: ${CLOUDFLARED_IMAGE}
+    restart: always
+    mem_limit: 256m
+    cpus: 0.5
+    logging: *logging
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${MEDIA_GATEWAY_TUNNEL_TOKEN}
+    depends_on: [aiostreams]
+    networks: [media-gateway]

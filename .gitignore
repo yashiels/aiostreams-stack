@@ -1,0 +1,8 @@
+/.env
+/.smoke/
+/data/
+/restore.*/
+__pycache__/
+/restore-rollback/
+/.stack.lock
+/config/household.json

@@ -1,0 +1,7 @@
+[Unit]
+Description=media-gateway restic backup to R2
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/apps/media-gateway
+ExecStart=%h/apps/media-gateway/backup/backup.sh

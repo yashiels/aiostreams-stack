@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.16.8"
+      - name: Install actionlint
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+      - name: Shell syntax
+        run: find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+      - name: Shell lint
+        run: find . -type f -name '*.sh' -print0 | xargs -0 shellcheck
+      - name: Python compile
+        run: find . -type f -name '*.py' -print0 | xargs -0 python3 -m py_compile
+      - name: Python lint
+        run: ruff check .
+      - name: Workflow lint
+        run: |
+          actionlint_path="$(go env GOPATH)/bin/actionlint"
+          "$actionlint_path"
+      - name: CLI help
+        run: |
+          python3 ops/bootstrap.py --help
+          python3 ops/verify.py --help
+      - name: Secret paths remain untracked
+        run: |
+          if git ls-files --error-unmatch .env; then exit 1; fi
+          if git ls-files --error-unmatch config/household.json; then exit 1; fi
+      - name: Leak gate
+        run: bash ops/leak-gate.sh

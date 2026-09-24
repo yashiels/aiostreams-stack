@@ -1,0 +1,8 @@
+services:
+  aiostreams:
+    environment:
+      BASE_URL: http://127.0.0.1:${SMOKE_PORT:-38080}
+    ports: !override ["127.0.0.1:${SMOKE_PORT:-38080}:3000"]
+
+  cloudflared:
+    profiles: [never-smoke]
