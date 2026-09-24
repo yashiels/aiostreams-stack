@@ -160,8 +160,10 @@ def create_config(http, household, template, plan):
 
 
 def print_urls(url, uuid, encrypted_password):
-    print(f"server_url={url.rstrip('/')}/jellyfin")
-    print(f"picker_url={url.rstrip('/')}/jellyfin/{uuid}/{encrypted_password}")
+    root = url.rstrip("/")
+    print(f"server_url={root}/jellyfin")
+    print(f"picker_url={root}/jellyfin/{uuid}/{encrypted_password}")
+    print(f"stremio_manifest_url={root}/stremio/{uuid}/{encrypted_password}/manifest.json")
 
 
 def main():
@@ -169,7 +171,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="report what would change, write nothing")
     parser.add_argument("--url", help="AIOStreams root URL; defaults to AIOSTREAMS_PUBLIC_URL")
     parser.add_argument("--apply-template", action="store_true", help="apply tuned template keys to an existing configuration")
-    parser.add_argument("--print-urls", action="store_true", help="print the server and credential-bearing picker URLs")
+    parser.add_argument("--print-urls", action="store_true", help="print the server URL and the credential-bearing picker and manifest URLs")
     args = parser.parse_args()
 
     household_path = ROOT / "config" / "household.json"

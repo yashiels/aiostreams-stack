@@ -1,36 +1,46 @@
 # aiostreams-stack runbook
 
-Remote examples assume `cd ~/apps/media-gateway`. Replace `user@host` with the SSH destination.
+The remote examples start in `~/apps/media-gateway`. Replace `user@host` with the SSH
+destination.
 
 ## Service checks
 
-Run `make probe HOST=user@host` after a deployment. For a deployment before tunnel ingress is
-active, use `make deploy-prep HOST=user@host`; it starts no tunnel connector and probes only the
+After each deployment, run `make probe HOST=user@host`. Before the tunnel ingress is active, run
+`make deploy-prep HOST=user@host`. That target starts no tunnel connector. It checks only the
 internal endpoints.
 
-Inspect the default project directly:
+To examine the project directly, run these commands:
 
 ```sh
 docker compose -p media-gateway --env-file .env --env-file versions.env -f compose.yml ps
 docker compose -p media-gateway --env-file .env --env-file versions.env -f compose.yml logs --since=30m aiostreams cloudflared
 ```
 
-When a client cannot connect, check the internal Jellyfin-compatible endpoint, the public endpoint,
-and the tunnel logs in that order. The production Compose file publishes no host port.
+If a client cannot connect, examine these items in this order:
 
-## Configuration and personas
+1. The internal Jellyfin API endpoint
+2. The public endpoint
+3. The tunnel logs
 
-Run `make bootstrap-dry` before changing household entries. Run `make bootstrap` to converge the
-primary user and personas. Existing unmanaged persona fields are preserved. A configuration
-password change invalidates the credential-bearing picker URL; regenerate it with
-`python3 ops/bootstrap.py --print-urls`.
+The production Compose file publishes no host port.
+
+## Configuration and profiles
+
+Before you change household entries, run `make bootstrap-dry`. To apply the primary user and the
+profiles, run `make bootstrap`. The script keeps profile fields that it does not manage.
+
+If you change the configuration password, the picker URL and the manifest URL stop working for
+every person. To change the password and get new URLs, follow "Revoke access" in
+[docs/SETUP.md](docs/SETUP.md).
 
 ## Search results
 
-Check the AIOStreams logs for provider failures and confirm configured addons answer. The local
-`tmdb-addon` profile is disabled because its pinned version requires MongoDB analytics during
-startup. If a compatible image is later enabled, add `COMPOSE_PROFILES=tmdb` and the matching addon
-URL together; remove both together when disabling it.
+1. Look in the AIOStreams logs for provider errors.
+2. Make sure that each configured addon answers.
+
+The local `tmdb-addon` profile is off. Its pinned version needs MongoDB analytics when it
+starts. To use a compatible image, add `COMPOSE_PROFILES=tmdb` and the matching addon URL at the
+same time. To stop using it, remove both at the same time.
 
 ## Backup and restore
 
@@ -41,32 +51,40 @@ restic snapshots --tag media-gateway
 ./backup/restore.sh <snapshot-id>
 ```
 
-Restore refuses snapshots without `data/aiostreams`, moves the previous data to
-`restore-rollback/<timestamp>/`, and automatically restores the previous tree if deployment fails.
-Delete the rollback copy only after `./ops/probe.sh --verbose` succeeds and playback is confirmed.
+The restore script refuses a snapshot without `data/aiostreams`. It moves the old data to
+`restore-rollback/<timestamp>/`. If the deployment fails, the script puts the old data back.
+
+Remove the rollback copy only after these two checks pass:
+
+1. `./ops/probe.sh --verbose` succeeds.
+2. A test video plays.
 
 ## Safe deployment
 
-Capture the rendered configuration hash before replacing a stack tree:
+Before you replace a stack tree, get the hash of the rendered configuration:
 
 ```sh
 ops/compose-config-sha.sh ~/apps/media-gateway
 ```
 
-Pass that value as `EXPECTED_COMPOSE_SHA256` on the next deploy. A mismatch exits before pull,
-backup, timer installation, directory creation, or container changes. `deploy.sh
---print-config-sha` performs the same read-only calculation and exits.
+Give that value as `EXPECTED_COMPOSE_SHA256` on the next deployment. If the hash is different,
+the deployment stops before it pulls images, makes a backup, installs the timer, makes
+directories, or changes containers. `deploy.sh --print-config-sha` gives the same hash and
+changes nothing.
 
 ## Rollback
 
-Keep a tar archive of the stack tree and a separate mode-0600 copy of `.env` before a structural
-upgrade. Exclude `data/` from the tree archive. To roll back, restore the files and `.env`, then run
-`bash ops/deploy.sh`. Application data stays in place; use restic only when the data itself needs
-recovery.
+Before a structural upgrade, make two copies:
 
-Never run two connectors for the same remotely managed tunnel during rollback.
+1. A tar archive of the stack tree, without `data/`
+2. A copy of `.env` with mode 0600
 
-## Disk pressure
+To roll back, restore the files and `.env`. Then run `bash ops/deploy.sh`. The application data
+stays in place. Use restic only when the data itself needs recovery.
+
+Do not run two connectors for the same remotely managed tunnel during a rollback.
+
+## Disk space
 
 ```sh
 df -h /
@@ -74,5 +92,6 @@ du -sh data/aiostreams /var/lib/docker 2>/dev/null
 docker system df
 ```
 
-Deploy refuses to start below 10 GiB free, and the probe fails below 6 GiB. Identify the consumer
-before pruning Docker data or rollback copies.
+The deployment does not start when the free space is less than 10 GiB. The probe fails when the
+free space is less than 6 GiB. Find what uses the space before you remove Docker data or
+rollback copies.
