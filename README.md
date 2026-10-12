@@ -64,6 +64,23 @@ This option keeps all service credentials.
 - `--print-urls` prints the client URLs. Without `--dry-run`, the script also applies its changes
   first. See [docs/SETUP.md](docs/SETUP.md).
 
+## Home rows
+
+AIOStreams makes one Jellyfin library and home row for each catalog. Set each row name, order,
+and enabled state in `catalogModifications` in `config/aiostreams.template.json`. A name change
+keeps the same view Id. Stremio and Nuvio get the same catalog rows.
+
+The template adds Netflix Top 10, trending and popular titles, service catalogs, and TMDB
+collections. The service lineups are for the US. To add a service, add its code to the
+`streaming-catalogs` preset `options.catalogs` list. Add movie and series entries to
+`catalogModifications`. Use the catalog Id and type for each entry. Update
+`config/expected-catalogs.json` with the expected names and view order.
+
+Use `make rows-dry` to see the row changes and the current row hash. Apply row changes with
+`ops/bootstrap.py --apply-rows --expect-sha256 <hash>`. This mode adds missing presets and keeps
+existing presets. It stops if an existing preset differs from the template. It also updates
+household profiles. Read "Change home rows" in [RUNBOOK.md](RUNBOOK.md) before you apply changes.
+
 ## Smoke test
 
 `make smoke-up` starts a separate test stack in `.smoke`. The test stack has no tunnel. It
@@ -76,6 +93,8 @@ To remove the test stack, run `make smoke-down`. On a host without `make`, run
 restarts in a loop, the test stops and prints the last log lines.
 
 ## Known limits
+
+- Poster-grid items from TMDB catalogs have no genres.
 
 - Web browsers cannot play many MKV, HEVC, and DTS files. Use a native app.
 - The `tmdb-addon` profile is off. Its pinned release needs MongoDB. AIOStreams uses its public

@@ -82,8 +82,11 @@ class Http:
                 if e.code in (502, 503, 504) and attempt < 3:
                     time.sleep(5)
                     continue
-                detail = e.read()[:300].decode(errors="replace")
-                raise SystemExit(f"{method} {path}: HTTP {e.code} {detail}") from None
+                raise SystemExit(self.http_error_message(method, path, e)) from None
+
+    def http_error_message(self, method, path, error):
+        detail = error.read()[:300].decode(errors="replace")
+        return f"{method} {path}: HTTP {error.code} {detail}"
 
 
 def aiostreams_session(aio, auth):
@@ -95,3 +98,14 @@ def aiostreams_session(aio, auth):
 
 def basic(uuid, pw):
     return {"Authorization": "Basic " + base64.b64encode(f"{uuid}:{pw}".encode()).decode()}
+
+
+class QuietHttp(Http):
+    def http_error_message(self, method, path, error):
+        return f"{method} request failed: HTTP {error.code}"
+
+    def call(self, method, path, body=None, headers=None, raw=None, timeout=120):
+        try:
+            return super().call(method, path, body, headers, raw, timeout)
+        except urllib.error.URLError:
+            raise SystemExit(f"{method} request failed") from None

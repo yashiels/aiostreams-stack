@@ -33,6 +33,36 @@ If you change the configuration password, the picker URL and the manifest URL st
 every person. To change the password and get new URLs, follow "Revoke access" in
 [docs/SETUP.md](docs/SETUP.md).
 
+## Change home rows
+
+1. Edit `config/aiostreams.template.json` and `config/expected-catalogs.json`. Run
+   `make sync HOST=user@host`. Sync keeps the host household file.
+2. On the host, save the current configuration:
+   `ops/config-snapshot.py save ~/media-gateway-restore/<timestamp>.json`.
+   Replace `<timestamp>` with a new time stamp. The file must not exist.
+3. On the host, run `make rows-dry`. Read the preset order, changed paths, and catalog entries.
+   Copy the printed `expect_sha256` value.
+4. On the host, run `ops/bootstrap.py --apply-rows --expect-sha256 <hash>`. Use the hash from
+   step 3. The script stops if the current rows changed. It checks the rows after the update.
+5. From the local tree, run `make check-catalogs HOST=user@host`. It checks all manifest catalogs
+   and the exact Jellyfin view order. Before you restore a failed update, confirm the state
+   with this check. To restore, run
+   `ops/config-snapshot.py restore ~/media-gateway-restore/<timestamp>.json` on the host.
+   Use the saved file from step 2. The script checks the full restored configuration.
+
+The AIOStreams sign-in limit is 10 sign-ins per IP address in 5 minutes. Each script run uses
+one AIOStreams sign-in. `check-catalogs` also uses one Jellyfin sign-in. Do not run the steps in
+a fast loop. If a step reports `HTTP 429`, wait 5 minutes. Then run the same step again.
+
+AIOStreams fetches the manifest of every addon when it saves a configuration. If an addon is
+not available, `--apply-rows` fails. The live configuration does not change. Try again later.
+
+If the post-write check fails after the "update AIOStreams home rows" line, the write was done.
+Run `make check-catalogs HOST=user@host` to confirm the state before any other step.
+
+The scripts read the host `.env`. Keep snapshots outside the synced stack tree. Each new
+snapshot directory has mode 0700. Each snapshot file has mode 0600. Do not share these files.
+
 ## Search results
 
 1. Look in the AIOStreams logs for provider errors.

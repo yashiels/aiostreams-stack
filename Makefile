@@ -4,13 +4,19 @@ PROJECT ?= media-gateway
 SSH_OPTS ?= -o StrictHostKeyChecking=yes
 SMOKE_DIR ?= .smoke
 SMOKE_PORT ?= 38080
-RSYNC_EXCLUDES = --exclude '.env' --exclude 'data/' --exclude '.git' \
+RSYNC_EXCLUDES = --exclude '.env' --exclude 'config/household.json' --exclude 'data/' --exclude '.git' \
 	--exclude 'restore-rollback/' --exclude 'restore.*/' --exclude '__pycache__/' --exclude '.stack.lock'
 COMPOSE = docker compose -p $(PROJECT) --env-file .env --env-file versions.env -f compose.yml
 
 export SMOKE_DIR SMOKE_PORT
 
-.PHONY: deploy deploy-prep sync env probe bootstrap bootstrap-dry verify logs rollback backup restore-check smoke-env smoke-up smoke-down
+.PHONY: rows-dry check-catalogs deploy deploy-prep sync env probe bootstrap bootstrap-dry verify logs rollback backup restore-check smoke-env smoke-up smoke-down
+
+rows-dry:
+	python3 ops/bootstrap.py --dry-run --apply-rows --diff
+
+check-catalogs:
+	ssh $(SSH_OPTS) $(HOST) 'cd $(REMOTE) && python3 ops/check-catalogs.py'
 
 bootstrap-dry:
 	python3 ops/bootstrap.py --dry-run

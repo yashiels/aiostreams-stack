@@ -27,7 +27,154 @@
       "usenet"
     ]
   },
-  "catalogModifications": [],
+  "catalogModifications": [
+    {
+      "id": "stce3b0.netflix-top10-global",
+      "type": "movie",
+      "name": "Netflix Top 10 Movies",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.netflix-top10-global",
+      "type": "series",
+      "name": "Netflix Top 10 Shows",
+      "enabled": true
+    },
+    {
+      "id": "tmde3b0.tmdb.trending",
+      "type": "movie",
+      "name": "Trending Movies",
+      "enabled": true
+    },
+    {
+      "id": "tmde3b0.tmdb.trending",
+      "type": "series",
+      "name": "Trending Shows",
+      "enabled": true
+    },
+    {
+      "id": "tmde3b0.tmdb.top",
+      "type": "movie",
+      "name": "Popular Movies",
+      "enabled": true
+    },
+    {
+      "id": "tmde3b0.tmdb.top",
+      "type": "series",
+      "name": "Popular Shows",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.nfx",
+      "type": "movie",
+      "name": "Netflix Movies",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.nfx",
+      "type": "series",
+      "name": "Netflix Shows",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.amp",
+      "type": "movie",
+      "name": "Prime Video Movies",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.amp",
+      "type": "series",
+      "name": "Prime Video Shows",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.dnp",
+      "type": "movie",
+      "name": "Disney+ Movies",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.dnp",
+      "type": "series",
+      "name": "Disney+ Shows",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.atp",
+      "type": "movie",
+      "name": "Apple TV+ Movies",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.atp",
+      "type": "series",
+      "name": "Apple TV+ Shows",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.hbm",
+      "type": "movie",
+      "name": "HBO Max Movies",
+      "enabled": true
+    },
+    {
+      "id": "stce3b0.hbm",
+      "type": "series",
+      "name": "HBO Max Shows",
+      "enabled": true
+    },
+    {
+      "id": "tcoe3b0.ctmdb.popular",
+      "type": "collections",
+      "name": "Popular Collections",
+      "enabled": true
+    },
+    {
+      "id": "tcoe3b0.ctmdb.topRated",
+      "type": "collections",
+      "name": "Top Rated Collections",
+      "enabled": true
+    },
+    {
+      "id": "tcoe3b0.ctmdb.newReleases",
+      "type": "collections",
+      "name": "New Collections",
+      "enabled": true
+    },
+    {
+      "id": "tmde3b0.tmdb.year",
+      "type": "movie",
+      "enabled": false
+    },
+    {
+      "id": "tmde3b0.tmdb.year",
+      "type": "series",
+      "enabled": false
+    },
+    {
+      "id": "tmde3b0.tmdb.language",
+      "type": "movie",
+      "enabled": false
+    },
+    {
+      "id": "tmde3b0.tmdb.language",
+      "type": "series",
+      "enabled": false
+    },
+    {
+      "id": "tmde3b0.tmdb.search",
+      "type": "movie",
+      "name": "Search",
+      "enabled": true
+    },
+    {
+      "id": "tmde3b0.tmdb.search",
+      "type": "series",
+      "name": "Search",
+      "enabled": true
+    }
+  ],
   "checkOwned": true,
   "deduplicator": {
     "cached": "single_result",
@@ -159,6 +306,42 @@
         "timeout": 7000
       },
       "type": "tmdb-addon"
+    },
+    {
+      "enabled": true,
+      "instanceId": "stc",
+      "options": {
+        "catalogs": [
+          "nfx",
+          "amp",
+          "dnp",
+          "atp",
+          "hbm"
+        ],
+        "name": "Streaming Catalogs",
+        "resources": [
+          "catalog"
+        ],
+        "timeout": 7000
+      },
+      "type": "streaming-catalogs"
+    },
+    {
+      "enabled": true,
+      "instanceId": "tco",
+      "options": {
+        "enableAdultContent": false,
+        "enableCollectionFromMovie": false,
+        "enableSearch": false,
+        "language": "en",
+        "name": "TMDB Collections",
+        "resources": [
+          "catalog",
+          "meta"
+        ],
+        "timeout": 7000
+      },
+      "type": "tmdb-collections"
     },
     {
       "enabled": false,

@@ -1,0 +1,130 @@
+{
+  "manifest": [
+    {
+      "type": "movie",
+      "id": "stce3b0.netflix-top10-global",
+      "name": "Netflix Top 10 Movies"
+    },
+    {
+      "type": "series",
+      "id": "stce3b0.netflix-top10-global",
+      "name": "Netflix Top 10 Shows"
+    },
+    {
+      "type": "movie",
+      "id": "tmde3b0.tmdb.trending",
+      "name": "Trending Movies"
+    },
+    {
+      "type": "series",
+      "id": "tmde3b0.tmdb.trending",
+      "name": "Trending Shows"
+    },
+    {
+      "type": "movie",
+      "id": "tmde3b0.tmdb.top",
+      "name": "Popular Movies"
+    },
+    {
+      "type": "series",
+      "id": "tmde3b0.tmdb.top",
+      "name": "Popular Shows"
+    },
+    {
+      "type": "movie",
+      "id": "stce3b0.nfx",
+      "name": "Netflix Movies"
+    },
+    {
+      "type": "series",
+      "id": "stce3b0.nfx",
+      "name": "Netflix Shows"
+    },
+    {
+      "type": "movie",
+      "id": "stce3b0.amp",
+      "name": "Prime Video Movies"
+    },
+    {
+      "type": "series",
+      "id": "stce3b0.amp",
+      "name": "Prime Video Shows"
+    },
+    {
+      "type": "movie",
+      "id": "stce3b0.dnp",
+      "name": "Disney+ Movies"
+    },
+    {
+      "type": "series",
+      "id": "stce3b0.dnp",
+      "name": "Disney+ Shows"
+    },
+    {
+      "type": "movie",
+      "id": "stce3b0.atp",
+      "name": "Apple TV+ Movies"
+    },
+    {
+      "type": "series",
+      "id": "stce3b0.atp",
+      "name": "Apple TV+ Shows"
+    },
+    {
+      "type": "movie",
+      "id": "stce3b0.hbm",
+      "name": "HBO Max Movies"
+    },
+    {
+      "type": "series",
+      "id": "stce3b0.hbm",
+      "name": "HBO Max Shows"
+    },
+    {
+      "type": "collections",
+      "id": "tcoe3b0.ctmdb.popular",
+      "name": "Popular Collections"
+    },
+    {
+      "type": "collections",
+      "id": "tcoe3b0.ctmdb.topRated",
+      "name": "Top Rated Collections"
+    },
+    {
+      "type": "collections",
+      "id": "tcoe3b0.ctmdb.newReleases",
+      "name": "New Collections"
+    },
+    {
+      "type": "movie",
+      "id": "tmde3b0.tmdb.search",
+      "name": "Search"
+    },
+    {
+      "type": "series",
+      "id": "tmde3b0.tmdb.search",
+      "name": "Search"
+    }
+  ],
+  "views": [
+    "Netflix Top 10 Movies",
+    "Netflix Top 10 Shows",
+    "Trending Movies",
+    "Trending Shows",
+    "Popular Movies",
+    "Popular Shows",
+    "Netflix Movies",
+    "Netflix Shows",
+    "Prime Video Movies",
+    "Prime Video Shows",
+    "Disney+ Movies",
+    "Disney+ Shows",
+    "Apple TV+ Movies",
+    "Apple TV+ Shows",
+    "HBO Max Movies",
+    "HBO Max Shows",
+    "Popular Collections",
+    "Top Rated Collections",
+    "New Collections"
+  ]
+}
