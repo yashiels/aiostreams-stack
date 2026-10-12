@@ -84,6 +84,22 @@ stays in place. Use restic only when the data itself needs recovery.
 
 Do not run two connectors for the same remotely managed tunnel during a rollback.
 
+### Roll back an AIOStreams update
+
+An AIOStreams update can apply database migrations when it starts. An older image does not start
+on a migrated database. The log shows `Database is at migration N but this build only knows up
+to M`. Thus, `make rollback` alone is not sufficient after such an update.
+
+Each deployment makes a pre-upgrade snapshot. To roll back an update:
+
+1. Find the pre-upgrade snapshot: `restic snapshots --tag media-gateway`.
+2. Put the old `versions.env` back: `git checkout <git-ref> -- versions.env`. Then run
+   `make sync HOST=user@host`.
+3. Run `./backup/restore.sh <snapshot-id>` on the host. The script deploys with the old image.
+4. Run `make probe HOST=user@host`.
+
+Changes that people made after the update, such as watch state, are lost.
+
 ## Disk space
 
 ```sh

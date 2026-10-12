@@ -28,6 +28,8 @@ services:
       JELLYFIN_MAX_PERSONAS: "10"
       JELLYFIN_MAX_VERSIONS: "10"
       JELLYFIN_RESOLVE_ON_OPEN: user
+      ALLOW_PRIVATE_URLS: "false"
+      REMUXDB_CONTRIBUTE: "false"
     volumes:
       - ./data/aiostreams:/app/data
     networks: [media-gateway]
