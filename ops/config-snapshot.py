@@ -16,6 +16,7 @@ from common import (
     save_snapshot,
     snapshot_path,
 )
+from mdblist import restored_config
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -73,6 +74,9 @@ def main():
     if args.action == "restore":
         args.path = args.path.expanduser()
         body = load_snapshot(args.path, target)
+        body["config"] = restored_config(
+            body["config"], settings.get("MDBLIST_API_KEY")
+        )
     else:
         args.path = snapshot_path(
             args.path or os.environ.get("SNAPSHOT_DIR", "~/media-gateway-restore"), name
@@ -83,7 +87,12 @@ def main():
     aiostreams_session(http, auth)
     if args.action == "save":
         response = http.call("GET", "/api/v1/user", headers=headers)
-        save_snapshot(args.path, response["data"]["userData"], target)
+        save_snapshot(
+            args.path,
+            response["data"]["userData"],
+            target,
+            settings.get("MDBLIST_API_KEY"),
+        )
         print(args.path)
     else:
         restore_snapshot(http, headers, body)

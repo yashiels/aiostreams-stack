@@ -16,6 +16,8 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
+from mdblist import tokenized_config
+
 UA = "curl/8.7.1"
 
 
@@ -291,7 +293,16 @@ def private_directory(path):
     return path
 
 
-def save_snapshot(path, config, target):
+def save_snapshot(path, config, target, mdblist_key=None):
+    if mdblist_key is None:
+        mdblist_key = os.environ.get("MDBLIST_API_KEY", "")
+    body = {
+        "target": {"name": target[0], "uuid": target[1]},
+        "config": tokenized_config(config, mdblist_key),
+    }
+    serialized = json.dumps(body)
+    if mdblist_key and mdblist_key in serialized:
+        raise SystemExit("snapshot contains an MDBList credential")
     path = Path(path).expanduser()
     private_directory(path.parent)
     try:
@@ -299,10 +310,21 @@ def save_snapshot(path, config, target):
     except FileExistsError:
         raise SystemExit(f"snapshot already exists: {path}") from None
     with os.fdopen(descriptor, "w") as output:
-        json.dump(
-            {"target": {"name": target[0], "uuid": target[1]}, "config": config}, output
-        )
-        output.write("\n")
+        output.write(serialized + "\n")
+    pattern = re.compile(
+        re.escape(target[0]) + r"-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8}\.json"
+    )
+    snapshots = sorted(
+        (
+            item
+            for item in path.parent.iterdir()
+            if pattern.fullmatch(item.name) and item.is_file() and not item.is_symlink()
+        ),
+        key=lambda item: (item.stat().st_mtime_ns, item.name),
+        reverse=True,
+    )
+    for old in snapshots[10:]:
+        old.unlink()
     return path
 
 

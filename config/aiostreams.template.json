@@ -125,6 +125,48 @@
       "enabled": true
     },
     {
+      "id": "gace3b0.action-movie",
+      "type": "movie",
+      "name": "Action Movies",
+      "enabled": true
+    },
+    {
+      "id": "gcoe3b0.comedy-movie",
+      "type": "movie",
+      "name": "Comedy Movies",
+      "enabled": true
+    },
+    {
+      "id": "gcse3b0.comedy-shows-series",
+      "type": "series",
+      "name": "Comedy Shows",
+      "enabled": true
+    },
+    {
+      "id": "gcre3b0.crime-movie",
+      "type": "movie",
+      "name": "Crime Movies",
+      "enabled": true
+    },
+    {
+      "id": "gkse3b0.crime-shows-series",
+      "type": "series",
+      "name": "Crime Shows",
+      "enabled": true
+    },
+    {
+      "id": "gdre3b0.drama-movie",
+      "type": "movie",
+      "name": "Drama Movies",
+      "enabled": true
+    },
+    {
+      "id": "gfae3b0.latest-hd-family-movies-top-rated-from-1980-to-today-movie",
+      "type": "movie",
+      "name": "Family Movies",
+      "enabled": true
+    },
+    {
       "id": "tcoe3b0.ctmdb.popular",
       "type": "collections",
       "name": "Popular Collections",
@@ -342,6 +384,97 @@
         "timeout": 7000
       },
       "type": "tmdb-collections"
+    },
+    {
+      "type": "custom",
+      "instanceId": "gac",
+      "options": {
+        "manifestUrl": "https://1fe84bc728af-stremio-mdblist.baby-beamup.club/3106/{MDBLIST_API_KEY}/manifest.json",
+        "name": "MDBList Action Movies",
+        "resources": [
+          "catalog"
+        ],
+        "timeout": 7000
+      },
+      "enabled": true
+    },
+    {
+      "type": "custom",
+      "instanceId": "gco",
+      "options": {
+        "manifestUrl": "https://1fe84bc728af-stremio-mdblist.baby-beamup.club/3107/{MDBLIST_API_KEY}/manifest.json",
+        "name": "MDBList Comedy Movies",
+        "resources": [
+          "catalog"
+        ],
+        "timeout": 7000
+      },
+      "enabled": true
+    },
+    {
+      "type": "custom",
+      "instanceId": "gcs",
+      "options": {
+        "manifestUrl": "https://1fe84bc728af-stremio-mdblist.baby-beamup.club/3122/{MDBLIST_API_KEY}/manifest.json",
+        "name": "MDBList Comedy Shows",
+        "resources": [
+          "catalog"
+        ],
+        "timeout": 7000
+      },
+      "enabled": true
+    },
+    {
+      "type": "custom",
+      "instanceId": "gcr",
+      "options": {
+        "manifestUrl": "https://1fe84bc728af-stremio-mdblist.baby-beamup.club/3108/{MDBLIST_API_KEY}/manifest.json",
+        "name": "MDBList Crime Movies",
+        "resources": [
+          "catalog"
+        ],
+        "timeout": 7000
+      },
+      "enabled": true
+    },
+    {
+      "type": "custom",
+      "instanceId": "gks",
+      "options": {
+        "manifestUrl": "https://1fe84bc728af-stremio-mdblist.baby-beamup.club/3126/{MDBLIST_API_KEY}/manifest.json",
+        "name": "MDBList Crime Shows",
+        "resources": [
+          "catalog"
+        ],
+        "timeout": 7000
+      },
+      "enabled": true
+    },
+    {
+      "type": "custom",
+      "instanceId": "gdr",
+      "options": {
+        "manifestUrl": "https://1fe84bc728af-stremio-mdblist.baby-beamup.club/3105/{MDBLIST_API_KEY}/manifest.json",
+        "name": "MDBList Drama Movies",
+        "resources": [
+          "catalog"
+        ],
+        "timeout": 7000
+      },
+      "enabled": true
+    },
+    {
+      "type": "custom",
+      "instanceId": "gfa",
+      "options": {
+        "manifestUrl": "https://1fe84bc728af-stremio-mdblist.baby-beamup.club/2415/{MDBLIST_API_KEY}/manifest.json",
+        "name": "MDBList Family Movies",
+        "resources": [
+          "catalog"
+        ],
+        "timeout": 7000
+      },
+      "enabled": true
     },
     {
       "enabled": false,

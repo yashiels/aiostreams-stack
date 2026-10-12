@@ -859,6 +859,8 @@ class CliTests(unittest.TestCase):
             settings.return_value.get.side_effect = lambda key, required=False: {
                 "AIOSTREAMS_AUTH": "admin:secret",
                 "AIOSTREAMS_PUBLIC_URL": "https://private.example",
+                "MDBLIST_API_KEY": "test-mdblist-key",
+                "MDBLIST_ROWS": "on",
             }[key]
             constructor.return_value.call.side_effect = [{}, response(current)]
             bootstrap.main()

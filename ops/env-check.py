@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
+import json
 import subprocess
 import sys
 from pathlib import Path
+
+from mdblist import configure_rows
 
 REQUIRED = [
     "AIOSTREAMS_PUBLIC_URL",
@@ -37,4 +40,15 @@ if __name__ == "__main__":
     missing = [k for k in REQUIRED if not decoded.get(k, "").strip()]
     if missing:
         raise SystemExit(f"env is missing or empty for: {', '.join(missing)}")
+    configure_rows(
+        json.loads(
+            (
+                Path(__file__).resolve().parent.parent
+                / "config"
+                / "aiostreams.template.json"
+            ).read_text()
+        ),
+        decoded.get("MDBLIST_API_KEY", ""),
+        decoded.get("MDBLIST_ROWS", ""),
+    )
     print(f"env ok: {len(decoded)} keys, {len(REQUIRED)} required present")

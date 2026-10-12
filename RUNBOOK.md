@@ -213,3 +213,63 @@ client retries 429 at most three times. It uses `Retry-After`, limits the wait t
 seconds, and adds up to 5 seconds. If the header is absent, invalid, or a date in the past, the
 wait is 60 seconds before the extra delay. Reconciliation GET requests use three bounded retries
 at 5, 15, and 30 seconds for transport failures, HTTP 5xx, or HTTP 429.
+
+## MDBList genre rows
+
+Put `MDBLIST_API_KEY` in the host `.env`. Use mode 0600 for that file. Set `MDBLIST_ROWS=on`.
+The loader requires the key when a managed preset is enabled. It stops before HTTP calls if
+`MDBLIST_ROWS` is not `on` or `off`. An unset or empty value means `on`. Do not print the key.
+Use `--sync-template` for each configuration to add rows, rotate the key, or change a list.
+Examine each diff and use its current hash as described in "Sync all configurations".
+
+If the MDBList addon is unavailable, use this recovery procedure:
+
+1. Set `MDBLIST_ROWS=off` in the host `.env`.
+2. For each configuration, run `ops/bootstrap.py --config NAME --dry-run --sync-template --diff`.
+   Confirm that only the managed genre presets are disabled. Get the current hash.
+3. Run `ops/bootstrap.py --config NAME --sync-template --expect-sha256 <hash>`.
+   Disabled presets do not require addon validation on save.
+4. Run `ops/check-catalogs.py --config NAME`. It reports the seven genre catalogs and views
+   missing and exits non-zero. This is expected while the rows are off. Confirm that the other
+   catalogs and views are present and in order.
+5. When the addon answers again, set `MDBLIST_ROWS=on`. Repeat the dry run and sync for each
+   configuration. Run `check-catalogs` again. All 26 views must be present.
+
+Snapshots use `{MDBLIST_API_KEY}` in managed manifest URLs. Save works without the current key.
+Restore requires the key from `.env`, even when the saved rows are disabled. Each save keeps the
+newest 10 snapshots for that target. Automatic rollback uses the original configuration in
+memory and does not read a snapshot file.
+
+Before rollout, measure the quota on the isolated smoke stack. Read the remaining quota from
+the `X-RateLimit-Remaining` response header. This command returns the account information:
+
+```sh
+curl -s "https://api.mdblist.com/user?apikey=$MDBLIST_API_KEY"
+```
+
+Add `-D - -o /dev/null` to read only the response headers. Load the key from `.env` first.
+Keep shell tracing off. Do not print the expanded command or the key.
+
+Measure the remaining quota before and after these checks:
+
+1. Request the first page of all 26 rows from three configurations.
+2. Request three pages of each genre row.
+3. Repeat step 1. This repeat must use no extra MDBList calls.
+4. Restart the container and repeat step 1.
+
+Proceed only if the complete validation run uses at most 150 calls and at least 600 requests
+remain after validation. Otherwise, stop rollout and revise the cache or row design. Measure
+again before and after live rollout, and 24 hours later.
+
+The operational estimate is the number of distinct catalog URLs requested, multiplied by
+one plus the number of restarts, plus manifest fetches. It is not a worst-case bound. Each page
+and genre filter can add a cache entry. The catalog TTL is 86400 seconds for the MDBList host.
+The default manifest cache can fetch seven manifests per 12 hours, with more fetches on a
+restart or configuration save.
+
+The enabled-only addon validation, URL log masking, shared URL cache keys, and TTL parsing
+assumptions apply to the pinned `2026.10.12.0225-nightly` AIOStreams image in `versions.env`.
+Before any image bump, repeat the smoke checks: block the MDBList host and confirm that enabled
+rows fail to save, disabled rows save, and enabled rows return after access is restored; measure
+the quota; check logs and API responses for key leaks; and confirm the exact cache TTL and that
+a repeated first-page request uses no extra calls.

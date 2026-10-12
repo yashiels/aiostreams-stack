@@ -63,11 +63,22 @@ smoke_env() {
   mkdir -p "$smoke_dir/ops"
   cp compose.yml compose.smoke.yml versions.env "$smoke_dir/"
   cp ops/env-export.py "$smoke_dir/ops/"
-  local torbox tmdb secret_key auth_password access_key line
+  local torbox tmdb mdblist mdblist_rows secret_key auth_password access_key line
   torbox="$(eval "$(./ops/env-export.py .env)"; printf '%s' "${TORBOX_API_KEY:-}")"
   tmdb="$(eval "$(./ops/env-export.py .env)"; printf '%s' "${TMDB_API_KEY:-}")"
   [ -n "$torbox" ] || { echo "TORBOX_API_KEY missing from .env" >&2; exit 1; }
   [ -n "$tmdb" ] || { echo "TMDB_API_KEY missing from .env" >&2; exit 1; }
+  mdblist="$(eval "$(./ops/env-export.py .env)"; printf '%s' "${MDBLIST_API_KEY:-}")"
+  mdblist_rows="$(eval "$(./ops/env-export.py .env)"; printf '%s' "${MDBLIST_ROWS:-on}")"
+  MDBLIST_API_KEY="$mdblist" MDBLIST_ROWS="$mdblist_rows" python3 - <<'PYTHON'
+import json
+import os
+import sys
+from pathlib import Path
+sys.path.insert(0, "ops")
+from mdblist import configure_rows
+configure_rows(json.loads(Path("config/aiostreams.template.json").read_text()), os.environ["MDBLIST_API_KEY"], os.environ["MDBLIST_ROWS"])
+PYTHON
   secret_key="$(random_hex_key)"
   auth_password="$(random_token 32)"
   access_key="$(random_token 48)"
@@ -81,6 +92,8 @@ smoke_env() {
         AIOSTREAMS_AUTH=*) printf 'AIOSTREAMS_AUTH=admin:%s\n' "$auth_password" ;;
         AIOSTREAMS_CONFIG_ACCESS_KEY=*) printf 'AIOSTREAMS_CONFIG_ACCESS_KEY=%s\n' "$access_key" ;;
         TORBOX_API_KEY=*) printf 'TORBOX_API_KEY=%s\n' "$torbox" ;;
+        MDBLIST_API_KEY=*) printf 'MDBLIST_API_KEY=%s\n' "$mdblist" ;;
+        MDBLIST_ROWS=*) printf 'MDBLIST_ROWS=%s\n' "$mdblist_rows" ;;
         TMDB_API_KEY=*) printf 'TMDB_API_KEY=%s\n' "$tmdb" ;;
         MEDIA_GATEWAY_TUNNEL_TOKEN=*) printf 'MEDIA_GATEWAY_TUNNEL_TOKEN=unused-in-smoke\n' ;;
         RESTIC_REPOSITORY=* | RESTIC_PASSWORD=* | AWS_ACCESS_KEY_ID=* | AWS_SECRET_ACCESS_KEY=*) printf '%s\n' "${line%%=*}=" ;;

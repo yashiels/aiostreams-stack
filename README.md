@@ -69,9 +69,24 @@ This option keeps all service credentials.
 AIOStreams makes one Jellyfin library and home row for each catalog. Set each row name, order,
 and enabled state in `catalogModifications` in `config/aiostreams.template.json`. A name change
 keeps the same view Id. Stremio and Nuvio get the same catalog rows.
+Each Jellyfin app loads every row when its home screen opens, so `JELLYFIN_MAX_LIBRARIES` must
+be at least the number of enabled rows. The stack sets it to 26.
 
 The template adds Netflix Top 10, trending and popular titles, service catalogs, and TMDB
-collections. The service lineups are for the US. To add a service, add its code to the
+collections. It also adds Action Movies, Comedy Movies, Comedy Shows, Crime Movies, Crime
+Shows, Drama Movies, and Family Movies from MDBList. There is no Horror row. The lists were
+selected for low horror content. A few horror-adjacent titles can appear.
+
+MDBList Free allows 1000 requests per day. The catalog cache keeps MDBList results for 24 hours.
+All configurations share the cache. A restart clears it. Pages and genre filters use separate
+cache entries. Use the quota checks in [RUNBOOK.md](RUNBOOK.md) before rollout.
+
+To replace a list, change its list Id in the template URL and its binding in `ops/mdblist.py`.
+Update the catalog Id, type, and name in both the template and `config/expected-catalogs.json`.
+The loader rejects a list that does not match its binding. Run the local tests and the smoke
+checks before you sync the change.
+
+The service lineups are for the US. To add a service, add its code to the
 `streaming-catalogs` preset `options.catalogs` list. Add movie and series entries to
 `catalogModifications`. Use the catalog Id and type for each entry. Update
 `config/expected-catalogs.json` with the expected names and view order.
@@ -86,7 +101,7 @@ household profiles. Read "Change home rows" in [RUNBOOK.md](RUNBOOK.md) before y
 `make smoke-up` starts a separate test stack in `.smoke`. The test stack has no tunnel. It
 listens only on `127.0.0.1:38080`. The test makes sure that only the expected container and port
 exist. Then it waits for health and makes a new configuration. It reads only the TorBox key and
-the TMDB key from the local `.env`.
+the TMDB key, `MDBLIST_API_KEY`, and `MDBLIST_ROWS` from the local `.env`.
 
 To remove the test stack, run `make smoke-down`. On a host without `make`, run
 `./ops/smoke.sh up .smoke 38080` and `./ops/smoke.sh down .smoke 38080`. If the container
@@ -94,7 +109,14 @@ restarts in a loop, the test stops and prints the last log lines.
 
 ## Known limits
 
+- AIOStreams 2026.10.12 writes the full URL of a failed catalog request to its own log in one
+  place (the distributed lock). For the MDBList rows, that URL contains the MDBList API key.
+  This happens only when a catalog request fails, for example a page past the end of a list.
+  The container logs on the host thus can contain the key. Only users with Docker access can
+  read them. Rotate the key if a log leaves the host.
 - Poster-grid items from TMDB catalogs have no genres.
+- Configuration snapshots replace MDBList credentials with a token. The TorBox credential
+  stays in snapshots. This is a known limit. Keep these files private.
 
 - Web browsers cannot play many MKV, HEVC, and DTS files. Use a native app.
 - The `tmdb-addon` profile is off. Its pinned release needs MongoDB. AIOStreams uses its public

@@ -417,10 +417,10 @@ class CatalogTests(unittest.TestCase):
         fixture = json.loads((ROOT / "config" / "expected-catalogs.json").read_text())
         self.assertEqual(
             [p["instanceId"] for p in template["presets"][:4]],
-            ["tmd", "stc", "tco", "80c"],
+            ["tmd", "stc", "tco", "gac"],
         )
-        self.assertEqual(len(fixture["manifest"]), 21)
-        self.assertEqual(len(fixture["views"]), 19)
+        self.assertEqual(len(fixture["manifest"]), 28)
+        self.assertEqual(len(fixture["views"]), 26)
         enabled = {
             (row["type"], row["id"], row["name"])
             for row in template["catalogModifications"]

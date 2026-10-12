@@ -81,6 +81,41 @@
       "name": "HBO Max Shows"
     },
     {
+      "id": "gace3b0.action-movie",
+      "type": "movie",
+      "name": "Action Movies"
+    },
+    {
+      "id": "gcoe3b0.comedy-movie",
+      "type": "movie",
+      "name": "Comedy Movies"
+    },
+    {
+      "id": "gcse3b0.comedy-shows-series",
+      "type": "series",
+      "name": "Comedy Shows"
+    },
+    {
+      "id": "gcre3b0.crime-movie",
+      "type": "movie",
+      "name": "Crime Movies"
+    },
+    {
+      "id": "gkse3b0.crime-shows-series",
+      "type": "series",
+      "name": "Crime Shows"
+    },
+    {
+      "id": "gdre3b0.drama-movie",
+      "type": "movie",
+      "name": "Drama Movies"
+    },
+    {
+      "id": "gfae3b0.latest-hd-family-movies-top-rated-from-1980-to-today-movie",
+      "type": "movie",
+      "name": "Family Movies"
+    },
+    {
       "type": "collections",
       "id": "tcoe3b0.ctmdb.popular",
       "name": "Popular Collections"
@@ -123,6 +158,13 @@
     "Apple TV+ Shows",
     "HBO Max Movies",
     "HBO Max Shows",
+    "Action Movies",
+    "Comedy Movies",
+    "Comedy Shows",
+    "Crime Movies",
+    "Crime Shows",
+    "Drama Movies",
+    "Family Movies",
     "Popular Collections",
     "Top Rated Collections",
     "New Collections"

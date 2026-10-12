@@ -23,6 +23,7 @@ from common import (
     save_snapshot,
     snapshot_path,
 )
+from mdblist import configure_rows
 
 ROOT = Path(__file__).resolve().parent.parent
 PERSONA_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
@@ -110,8 +111,15 @@ def managed_jellyfin(jellyfin):
     }
 
 
-def configured_template(torbox_key):
-    template = json.loads((ROOT / "config" / "aiostreams.template.json").read_text())
+def configured_template(torbox_key=None, settings=None):
+    settings = settings or Settings(ROOT)
+    template = configure_rows(
+        json.loads((ROOT / "config" / "aiostreams.template.json").read_text()),
+        settings.get("MDBLIST_API_KEY"),
+        settings.get("MDBLIST_ROWS"),
+    )
+    if torbox_key is None:
+        return template
     services = template.get("services") or []
     torbox = next(
         (service for service in services if service.get("id") == "torbox"), None
@@ -424,7 +432,7 @@ def guarded_write(http, headers, current, desired, target, directory=None):
         directory or os.environ.get("SNAPSHOT_DIR", "~/media-gateway-restore"),
         target[0],
     )
-    save_snapshot(path, current, target)
+    save_snapshot(path, current, target, Settings(ROOT).get("MDBLIST_API_KEY"))
     print(path)
     try:
         http.call("PUT", "/api/v1/user", {"config": desired}, headers=headers)
@@ -636,10 +644,9 @@ def main():
         household = json.loads(household_path.read_text())
     url = (args.url or settings.get("AIOSTREAMS_PUBLIC_URL", required=True)).rstrip("/")
     auth = settings.get("AIOSTREAMS_AUTH", required=True)
-    template = (
-        json.loads((ROOT / "config" / "aiostreams.template.json").read_text())
-        if guarded or uuid
-        else configured_template(settings.get("TORBOX_API_KEY", required=True))
+    template = configured_template(
+        settings.get("TORBOX_API_KEY", required=True) if not uuid else None,
+        settings,
     )
     print("config " + name)
     plan = Plan(args.dry_run)
