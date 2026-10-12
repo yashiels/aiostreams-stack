@@ -4,7 +4,14 @@ import json
 import urllib.parse
 from pathlib import Path
 
-from common import QuietHttp, Settings, aiostreams_session, basic
+from common import (
+    QuietHttp,
+    RequestError,
+    Settings,
+    aiostreams_session,
+    basic,
+    resolve_target,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 EMBY_AUTHORIZATION = 'MediaBrowser Client="check-catalogs", Device="check-catalogs", DeviceId="check-catalogs", Version="1"'
@@ -65,13 +72,15 @@ def main():
     parser.add_argument(
         "--fixture", type=Path, default=ROOT / "config" / "expected-catalogs.json"
     )
+    parser.add_argument("--config", default="main", help="configuration name")
     args = parser.parse_args()
     fixture = json.loads(args.fixture.read_text())
     manifest_entries(fixture["manifest"], "fixture")
     settings = Settings(ROOT)
     auth = settings.get("AIOSTREAMS_AUTH", required=True)
-    uuid = settings.get("AIOSTREAMS_UUID", required=True)
-    password = settings.get("AIOSTREAMS_PASSWORD", required=True)
+    name, uuid, password, _ = resolve_target(settings, args.config)
+    if not uuid or not password:
+        raise SystemExit("configuration credentials are required")
     http = QuietHttp(args.url or settings.get("AIOSTREAMS_PUBLIC_URL", required=True))
     aiostreams_session(http, auth)
     data = http.call("GET", "/api/v1/user", headers=basic(uuid, password))["data"]
@@ -96,9 +105,13 @@ def main():
         fixture, manifest, [item["Name"] for item in response["Items"]]
     )
     if differences:
+        print("config " + name)
         print("\n".join(differences))
         raise SystemExit(1)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RequestError as error:
+        raise SystemExit(str(error)) from None

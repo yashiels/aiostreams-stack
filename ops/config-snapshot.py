@@ -4,46 +4,45 @@ import json
 import os
 from pathlib import Path
 
-from common import QuietHttp, Settings, aiostreams_session, basic
+from common import (
+    QuietHttp,
+    RequestError,
+    Settings,
+    aiostreams_session,
+    basic,
+    canonical_config,
+    private_directory,
+    resolve_target,
+    save_snapshot,
+    snapshot_path,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
-SERVER_MAINTAINED_KEYS = ("statistics",)
-
-
-def canonical_config(config):
-    return json.dumps(
-        {
-            key: value
-            for key, value in config.items()
-            if key not in SERVER_MAINTAINED_KEYS
-        },
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-
-
-def save_snapshot(path, config):
-    missing_parents = []
-    parent = path.parent
-    while not parent.exists():
-        missing_parents.append(parent)
-        parent = parent.parent
-    for parent in reversed(missing_parents):
-        parent.mkdir(mode=0o700)
-    try:
-        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError:
-        raise SystemExit(f"snapshot already exists: {path}") from None
-    with os.fdopen(descriptor, "w") as output:
-        json.dump({"config": config}, output)
-        output.write("\n")
 
 
 def restore_snapshot(http, headers, body):
-    http.call("PUT", "/api/v1/user", body, headers=headers)
+    http.call("PUT", "/api/v1/user", {"config": body["config"]}, headers=headers)
     restored = http.call("GET", "/api/v1/user", headers=headers)["data"]["userData"]
     if canonical_config(restored) != canonical_config(body["config"]):
         raise SystemExit("snapshot verification failed after restore")
+
+
+def load_snapshot(path, target):
+    private_directory(path.parent)
+    try:
+        body = json.loads(path.read_text())
+    except (OSError, ValueError):
+        raise SystemExit("snapshot cannot be read as JSON") from None
+    if (
+        not isinstance(body, dict)
+        or set(body) != {"target", "config"}
+        or not isinstance(body["config"], dict)
+        or body["target"] != {"name": target[0], "uuid": target[1]}
+    ):
+        raise SystemExit(
+            "snapshot target must match the config name and UUID; legacy snapshots are rejected"
+        )
+    return body
 
 
 def main():
@@ -53,35 +52,46 @@ def main():
     parser.add_argument(
         "--url", help="AIOStreams root URL; defaults to AIOSTREAMS_PUBLIC_URL"
     )
+    parser.add_argument("--config", default="main", help="configuration name")
     parser.add_argument("action", choices=("save", "restore"))
-    parser.add_argument("path", type=Path)
+    parser.add_argument(
+        "path", type=Path, nargs="?", help="save directory or restore file"
+    )
     args = parser.parse_args()
-    if args.action == "save" and args.path.exists():
-        raise SystemExit(f"snapshot already exists: {args.path}")
+    if args.action == "restore" and args.path is None:
+        parser.error("restore requires a snapshot file")
+    if args.action == "save" and args.path is not None:
+        args.path = args.path.expanduser()
+        if args.path.is_symlink() or (args.path.exists() and not args.path.is_dir()):
+            raise SystemExit(f"snapshot already exists: {args.path}")
     settings = Settings(ROOT)
-    auth = settings.get("AIOSTREAMS_AUTH", required=True)
-    uuid = settings.get("AIOSTREAMS_UUID", required=True)
-    password = settings.get("AIOSTREAMS_PASSWORD", required=True)
-    http = QuietHttp(args.url or settings.get("AIOSTREAMS_PUBLIC_URL", required=True))
-    headers = basic(uuid, password)
+    target = resolve_target(settings, args.config)
+    name, uuid, password, _ = target
+    if not uuid or not password:
+        raise SystemExit("configuration credentials are required")
     body = None
     if args.action == "restore":
-        body = json.loads(args.path.read_text())
-        if (
-            not isinstance(body, dict)
-            or set(body) != {"config"}
-            or not isinstance(body["config"], dict)
-        ):
-            raise SystemExit("snapshot must contain exactly one config object")
+        args.path = args.path.expanduser()
+        body = load_snapshot(args.path, target)
+    else:
+        args.path = snapshot_path(
+            args.path or os.environ.get("SNAPSHOT_DIR", "~/media-gateway-restore"), name
+        )
+    auth = settings.get("AIOSTREAMS_AUTH", required=True)
+    http = QuietHttp(args.url or settings.get("AIOSTREAMS_PUBLIC_URL", required=True))
+    headers = basic(uuid, password)
     aiostreams_session(http, auth)
     if args.action == "save":
         response = http.call("GET", "/api/v1/user", headers=headers)
-        save_snapshot(args.path, response["data"]["userData"])
-        print("saved configuration snapshot")
+        save_snapshot(args.path, response["data"]["userData"], target)
+        print(args.path)
     else:
         restore_snapshot(http, headers, body)
-        print("restored and verified configuration snapshot")
+        print("restored and verified config " + name)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RequestError as error:
+        raise SystemExit(str(error)) from None

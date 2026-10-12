@@ -128,3 +128,24 @@ recovery, read [RUNBOOK.md](RUNBOOK.md).
 `HOST`, `REMOTE`, and `PROJECT` are Make variables. Their defaults are compatible with
 production: `~/apps/media-gateway` for `REMOTE` and `media-gateway` for `PROJECT`. Git ignores
 `.env`, `config/household.json`, application data, lock files, and restore directories.
+
+## Household configurations
+
+Use one standalone configuration for each Nuvio or Stremio user. Stremio has no profiles.
+Separate configurations keep each person's watch history separate. Jellyfin apps can use the
+profiles in the main configuration.
+
+On the host, store the standalone names, UUIDs, and passwords in `config/configs.json`. Use
+`config/configs.example.json` for the format. The file must have mode 0600 and belong to the
+user who runs the scripts. `main` is reserved for the credentials in `.env`. Git and `make sync`
+exclude the credential file.
+
+Run `ops/bootstrap.py --config NAME --dry-run --sync-template --diff` to examine a configuration.
+The template controls presets, home rows, sorting, filters, languages, and service settings.
+Sync keeps existing service credentials and preset credentials. It keeps all standalone
+Jellyfin settings. Only the main configuration gets household profile changes.
+
+Writes with `--sync-template` or `--apply-rows` require the current `--expect-sha256` hash. They
+save a target-bound emergency snapshot, check the full configuration after the write, and try
+to roll back a failed check. To remove a preset, add `--allow-preset-removal` after you examine
+the diff. See [Sync all configurations](RUNBOOK.md#sync-all-configurations).

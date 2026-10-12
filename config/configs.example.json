@@ -1,0 +1,6 @@
+{
+  "configs": [
+    {"name": "person_one", "uuid": "replace-person-one-uuid", "password": "replace-person-one-password"},
+    {"name": "person_two", "uuid": "replace-person-two-uuid", "password": "replace-person-two-password"}
+  ]
+}

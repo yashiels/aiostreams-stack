@@ -4,7 +4,7 @@ PROJECT ?= media-gateway
 SSH_OPTS ?= -o StrictHostKeyChecking=yes
 SMOKE_DIR ?= .smoke
 SMOKE_PORT ?= 38080
-RSYNC_EXCLUDES = --exclude '.env' --exclude 'config/household.json' --exclude 'data/' --exclude '.git' \
+RSYNC_EXCLUDES = --exclude '.env' --exclude 'config/household.json' --exclude 'config/configs.json' --exclude 'data/' --exclude '.git' \
 	--exclude 'restore-rollback/' --exclude 'restore.*/' --exclude '__pycache__/' --exclude '.stack.lock'
 COMPOSE = docker compose -p $(PROJECT) --env-file .env --env-file versions.env -f compose.yml
 
@@ -64,3 +64,14 @@ smoke-up:
 
 smoke-down:
 	./ops/smoke.sh down "$$SMOKE_DIR" "$$SMOKE_PORT"
+
+.PHONY: snapshot-all sync-dry-all check-catalogs-all
+
+snapshot-all:
+	bash ops/each-config.sh ops/config-snapshot.py save
+
+sync-dry-all:
+	bash ops/each-config.sh ops/bootstrap.py --dry-run --sync-template --diff
+
+check-catalogs-all:
+	bash ops/each-config.sh ops/check-catalogs.py

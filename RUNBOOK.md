@@ -38,27 +38,28 @@ every person. To change the password and get new URLs, follow "Revoke access" in
 1. Edit `config/aiostreams.template.json` and `config/expected-catalogs.json`. Run
    `make sync HOST=user@host`. Sync keeps the host household file.
 2. On the host, save the current configuration:
-   `ops/config-snapshot.py save ~/media-gateway-restore/<timestamp>.json`.
-   Replace `<timestamp>` with a new time stamp. The file must not exist.
+   `ops/config-snapshot.py save --config main`.
+   Record the printed snapshot path.
 3. On the host, run `make rows-dry`. Read the preset order, changed paths, and catalog entries.
    Copy the printed `expect_sha256` value.
 4. On the host, run `ops/bootstrap.py --apply-rows --expect-sha256 <hash>`. Use the hash from
-   step 3. The script stops if the current rows changed. It checks the rows after the update.
+   step 3. The script stops if the current rows changed. It saves an emergency snapshot and checks the
+   full configuration after the update.
 5. From the local tree, run `make check-catalogs HOST=user@host`. It checks all manifest catalogs
    and the exact Jellyfin view order. Before you restore a failed update, confirm the state
    with this check. To restore, run
-   `ops/config-snapshot.py restore ~/media-gateway-restore/<timestamp>.json` on the host.
+   `ops/config-snapshot.py restore --config main <snapshot-path>` on the host.
    Use the saved file from step 2. The script checks the full restored configuration.
 
 The AIOStreams sign-in limit is 10 sign-ins per IP address in 5 minutes. Each script run uses
 one AIOStreams sign-in. `check-catalogs` also uses one Jellyfin sign-in. Do not run the steps in
 a fast loop. If a step reports `HTTP 429`, wait 5 minutes. Then run the same step again.
 
-AIOStreams fetches the manifest of every addon when it saves a configuration. If an addon is
-not available, `--apply-rows` fails. The live configuration does not change. Try again later.
-
-If the post-write check fails after the "update AIOStreams home rows" line, the write was done.
-Run `make check-catalogs HOST=user@host` to confirm the state before any other step.
+AIOStreams fetches the manifest of every addon when it saves a configuration. If a save fails,
+the script reads the configuration to find if the save took effect. If it finds an unexpected
+state, it tries to restore the pre-write configuration and checks the result. If rollback fails,
+use the printed emergency snapshot path and restore command. Do not continue to the next
+configuration until you confirm the state.
 
 The scripts read the host `.env`. Keep snapshots outside the synced stack tree. Each new
 snapshot directory has mode 0700. Each snapshot file has mode 0600. Do not share these files.
@@ -141,3 +142,74 @@ docker system df
 The deployment does not start when the free space is less than 10 GiB. The probe fails when the
 free space is less than 6 GiB. Find what uses the space before you remove Docker data or
 rollback copies.
+
+## Sync all configurations
+
+Run the sync commands on the host in `~/apps/media-gateway`. Keep snapshots outside this tree.
+The default snapshot directory is `~/media-gateway-restore`. To change it, set `SNAPSHOT_DIR`.
+An existing directory must belong to the current user, have no group or world permission bits,
+and not be a symbolic link. New directories have mode 0700. Snapshot files have mode 0600.
+
+1. Get the UUID and password of each extra configuration from your password manager. Use a
+   command that prints them to standard output in this format, without writing a local file:
+   `{"configs":[{"name":"person_one","uuid":"replace-uuid","password":"replace-password"}]}`.
+   Do not include the main configuration (the one in `.env`). `load_configs` rejects its UUID
+   and the reserved name `main`.
+
+   Pipe that command straight into this SSH command. The host writes the file atomically under
+   `umask 077`. Replace `print-extra-configs` with your command and `user@host` with the host.
+   The credentials go through standard input only.
+
+   ```sh
+   print-extra-configs | ssh -o StrictHostKeyChecking=yes user@host '
+     set -eu
+     umask 077
+     cd ~/apps/media-gateway
+     temporary=$(mktemp config/.configs.XXXXXXXX)
+     trap '\''rm -f "$temporary"'\'' EXIT
+     cat > "$temporary"
+     python3 -m json.tool "$temporary" >/dev/null
+     mv "$temporary" config/configs.json
+   '
+   ```
+
+   Keep credentials out of command arguments, local files, and terminal output. To check the
+   host file and examine all diffs, run `bash ops/each-config.sh ops/bootstrap.py --dry-run --sync-template --diff` on the host (`make sync-dry-all` where `make` exists).
+2. Run `bash ops/each-config.sh ops/config-snapshot.py save` on the host (`make snapshot-all` where `make` exists). Record the printed paths. The scripts process `main`
+   first, then the order in `configs.json`. They wait 40 seconds between configurations.
+   Set `EACH_CONFIG_PAUSE` to an integer from 30 to 600 to change this wait. The batch stops
+   when a command fails and prints that configuration's name.
+3. For each configuration, run these commands on the host. Replace `NAME` with `main` or a
+   standalone name. Examine the changed keys, preset paths, and catalog tuples. Use the hash
+   from that configuration's dry run for its write. If any preset is removed, stop and examine
+   that removal before you add `--allow-preset-removal`.
+
+   ```sh
+   python3 ops/bootstrap.py --config NAME --dry-run --sync-template --diff
+   python3 ops/bootstrap.py --config NAME --sync-template --expect-sha256 <hash>
+   ```
+
+   The hash includes only live template keys. It excludes only service and preset credentials.
+   A write saves an emergency snapshot before the PUT. The check compares the full configuration,
+   except server fields `statistics`, `trusted`, `ip`, `activeVariants`, `autoVariants`,
+   `healthResults`, and `variantSelectorLocation`. It also checks existing preset credentials
+   and standalone Jellyfin settings. If the check fails, the script tries to roll back and
+   reports the result. If it reports "no change was made", stop and examine the failed request.
+4. Run `bash ops/each-config.sh ops/check-catalogs.py` on the host (`make check-catalogs-all` where `make` exists). It checks the manifest catalog set and the ordered
+   Jellyfin views for each configuration. If a batch fails, confirm that configuration's state
+   before you continue.
+5. To restore one configuration, use its saved path and the same name:
+
+   ```sh
+   python3 ops/config-snapshot.py restore --config NAME <snapshot-path>
+   ```
+
+   Restore requires both the saved name and UUID to match. It rejects old snapshots without a
+   target identity. It checks the full restored configuration with the same server field list.
+
+Each script run uses one AIOStreams admin sign-in. The sign-in limit is 10 per IP address in
+5 minutes. Other clients can use the same limit. A request can still receive HTTP 429. The HTTP
+client retries 429 at most three times. It uses `Retry-After`, limits the wait to 1 through 330
+seconds, and adds up to 5 seconds. If the header is absent, invalid, or a date in the past, the
+wait is 60 seconds before the extra delay. Reconciliation GET requests use three bounded retries
+at 5, 15, and 30 seconds for transport failures, HTTP 5xx, or HTTP 429.

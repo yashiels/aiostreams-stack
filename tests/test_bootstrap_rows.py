@@ -5,7 +5,6 @@ import importlib.util
 import io
 import json
 import stat
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -16,7 +15,7 @@ from unittest.mock import Mock, patch
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "ops"))
 import bootstrap
-from common import Plan, QuietHttp
+from common import Plan, QuietHttp, RequestError
 
 
 def load_script(name):
@@ -118,44 +117,11 @@ class MergeTests(unittest.TestCase):
 
 
 class HashAndDiffTests(unittest.TestCase):
-    def test_hash_ignores_nested_secret_keys_and_object_order(self):
-        before = {
-            "presets": [
-                {
-                    "instanceId": "a",
-                    "options": {
-                        "name": "A",
-                        "apiKey": "one",
-                        "nested": [
-                            {"TOKEN": "one", "credentials": {"any": "one"}, "value": 1}
-                        ],
-                    },
-                }
-            ],
-            "catalogModifications": [],
-        }
-        after = {
-            "catalogModifications": [],
-            "presets": [
-                {
-                    "options": {
-                        "nested": [{"value": 1, "secret": "two", "password": "two"}],
-                        "name": "A",
-                    },
-                    "instanceId": "a",
-                }
-            ],
-        }
-        canonical = json.dumps(after, sort_keys=True, separators=(",", ":"))
-        expected = hashlib.sha256(
-            json.dumps(
-                bootstrap.without_secrets(json.loads(canonical)),
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode()
-        ).hexdigest()
-        self.assertEqual(bootstrap.rows_sha256(before), bootstrap.rows_sha256(after))
-        self.assertEqual(bootstrap.rows_sha256(before), expected)
+    def test_hash_tracks_nested_secret_named_keys(self):
+        before = {"presets": [{"instanceId": "a", "options": {"apiKey": "one"}}]}
+        after = copy.deepcopy(before)
+        after["presets"][0]["options"]["apiKey"] = "two"
+        self.assertNotEqual(bootstrap.rows_sha256(before), bootstrap.rows_sha256(after))
 
     def test_hash_tracks_list_order(self):
         self.assertNotEqual(
@@ -191,9 +157,9 @@ class HashAndDiffTests(unittest.TestCase):
             patch.object(
                 http.opener, "open", side_effect=urllib.error.URLError("private")
             ),
-            self.assertRaisesRegex(SystemExit, "^GET request failed$"),
+            self.assertRaisesRegex(RequestError, "^GET request failed: no response$"),
         ):
-            http.call("GET", "/private")
+            http.call("GET", "/private", retry_429=False)
 
     def test_http_failure_preserves_status_only(self):
         for code in (403, 429):
@@ -206,11 +172,11 @@ class HashAndDiffTests(unittest.TestCase):
                 self.subTest(code=code),
                 patch.object(http.opener, "open", side_effect=error),
                 self.assertRaisesRegex(
-                    SystemExit, f"^POST request failed: HTTP {code}$"
+                    RequestError, f"^POST request failed: HTTP {code}$"
                 ),
             ):
-                http.call("POST", "/private/path")
-            self.assertEqual(body.tell(), 0)
+                http.call("POST", "/private/path", retry_429=False)
+            self.assertTrue(body.closed)
 
     def test_missing_null_and_empty_row_fields_have_distinct_hashes(self):
         for key in ("presets", "catalogModifications"):
@@ -265,22 +231,20 @@ class ApplyTests(unittest.TestCase):
     def test_missing_hash_exits_before_http(self):
         with (
             patch.object(sys, "argv", ["bootstrap.py", "--apply-rows"]),
-            patch.object(bootstrap, "Http") as http,
-            patch.object(bootstrap, "QuietHttp") as quiet,
+            patch.object(bootstrap, "QuietHttp") as http,
             contextlib.redirect_stderr(io.StringIO()),
             self.assertRaises(SystemExit) as caught,
         ):
             bootstrap.main()
         self.assertNotEqual(caught.exception.code, 0)
         http.assert_not_called()
-        quiet.assert_not_called()
 
     def test_diff_requires_apply_rows(self):
         output = io.StringIO()
         with (
             patch.object(sys, "argv", ["bootstrap.py", "--diff"]),
             patch.object(bootstrap, "Settings") as settings,
-            patch.object(bootstrap, "Http") as http,
+            patch.object(bootstrap, "QuietHttp") as http,
             contextlib.redirect_stderr(output),
             self.assertRaises(SystemExit) as caught,
         ):
@@ -301,7 +265,12 @@ class ApplyTests(unittest.TestCase):
                 else:
                     observed[key] = None
                 http = Mock()
-                http.call.side_effect = [{}, {"data": {"userData": observed}}]
+                http.call.side_effect = [
+                    {},
+                    {"data": {"userData": observed}},
+                    {},
+                    {"data": {"userData": current}},
+                ]
                 with (
                     self.subTest(key=key, missing=missing),
                     self.assertRaisesRegex(SystemExit, "verification failed"),
@@ -341,7 +310,10 @@ class ApplyTests(unittest.TestCase):
             bootstrap.main()
 
     def converge(self, http, current, template, dry_run=False, expected=None):
-        with contextlib.redirect_stdout(io.StringIO()):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
             return bootstrap.converge_config(
                 http,
                 {},
@@ -353,6 +325,7 @@ class ApplyTests(unittest.TestCase):
                 True,
                 True,
                 expected,
+                snapshot_directory=directory,
             )
 
     def test_hash_mismatch_prevents_writes(self):
@@ -381,7 +354,12 @@ class ApplyTests(unittest.TestCase):
 
     def test_post_write_mismatch_fails(self):
         http = Mock()
-        http.call.side_effect = [{}, {"data": {"userData": {}}}]
+        http.call.side_effect = [
+            {},
+            {"data": {"userData": {}}},
+            {},
+            {"data": {"userData": {}}},
+        ]
         with self.assertRaisesRegex(SystemExit, "verification failed"):
             self.converge(
                 http, {}, {"presets": [preset("a")]}, expected=bootstrap.rows_sha256({})
@@ -392,45 +370,29 @@ class SnapshotTests(unittest.TestCase):
     def test_nested_snapshot_parents_are_private(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "first" / "second" / "save.json"
-            snapshot.save_snapshot(path, {})
+            snapshot.save_snapshot(path, {}, ("main", "test-id"))
             for parent in (path.parent, path.parent.parent):
                 self.assertEqual(stat.S_IMODE(parent.stat().st_mode), 0o700)
 
     def test_save_is_private_exact_and_exclusive(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "snapshots" / "save.json"
-            snapshot.save_snapshot(path, {"nested": {"token": "private"}})
+            snapshot.save_snapshot(
+                path, {"nested": {"token": "private"}}, ("main", "test-id")
+            )
             self.assertEqual(
                 json.loads(path.read_text()),
-                {"config": {"nested": {"token": "private"}}},
+                {
+                    "target": {"name": "main", "uuid": "test-id"},
+                    "config": {"nested": {"token": "private"}},
+                },
             )
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
             self.assertEqual(stat.S_IMODE(path.parent.stat().st_mode), 0o700)
-            with self.assertRaises(SystemExit) as caught:
-                snapshot.save_snapshot(path, {})
-            self.assertEqual(str(caught.exception), f"snapshot already exists: {path}")
+            with self.assertRaisesRegex(SystemExit, "snapshot already exists"):
+                snapshot.save_snapshot(path, {}, ("main", "test-id"))
 
-    def test_save_cli_existing_path_reports_one_line_without_authentication(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "existing.json"
-            path.write_text("existing")
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    str(ROOT / "ops" / "config-snapshot.py"),
-                    "save",
-                    str(path),
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertNotEqual(result.returncode, 0)
-            self.assertEqual(result.stderr, f"snapshot already exists: {path}\n")
-            self.assertEqual(result.stdout, "")
-            self.assertEqual(path.read_text(), "existing")
-
-    def test_restore_ignores_only_top_level_statistics(self):
+    def test_restore_ignores_server_fields_only_at_top_level(self):
         body = {"config": {"value": [1], "statistics": {"requests": 1}}}
         http = Mock()
         http.call.side_effect = [
