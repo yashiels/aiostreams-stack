@@ -122,7 +122,7 @@ to M`. Thus, `make rollback` alone is not sufficient after such an update.
 
 Each deployment makes a pre-upgrade snapshot. To roll back an update:
 
-1. Find the pre-upgrade snapshot: `restic snapshots --tag media-gateway`.
+1. Find the pre-upgrade snapshot: `restic snapshots --tag media-gateway-pre-upgrade`.
 2. Put the old `versions.env` back: `git checkout <git-ref> -- versions.env`. Then run
    `make sync HOST=user@host`.
 3. Run `./backup/restore.sh <snapshot-id>` on the host. The script deploys with the old image.
