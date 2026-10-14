@@ -5,7 +5,7 @@ SSH_OPTS ?= -o StrictHostKeyChecking=yes
 SMOKE_DIR ?= .smoke
 SMOKE_PORT ?= 38080
 RSYNC_EXCLUDES = --exclude '.env' --exclude 'config/household.json' --exclude 'config/configs.json' --exclude 'data/' --exclude '.git' \
-	--exclude 'restore-rollback/' --exclude 'restore.*/' --exclude '__pycache__/' --exclude '.stack.lock'
+	--exclude 'restore-rollback/' --exclude 'restore.*/' --exclude '__pycache__/' --exclude '.stack.lock' --exclude '.promotion-state'
 COMPOSE = docker compose -p $(PROJECT) --env-file .env --env-file versions.env -f compose.yml
 
 export SMOKE_DIR SMOKE_PORT

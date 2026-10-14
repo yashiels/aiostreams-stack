@@ -81,7 +81,18 @@ authors = git_output("log", "--all", "--format=%an <%ae> %cn <%ce>")
 tags = git_output("tag", "-l")
 check_patterns("git metadata", metadata)
 check_patterns("git tags", tags)
-for label, data in (("git metadata", metadata), ("git authors", authors), ("git tags", tags)):
+for object_id in git_output("rev-list", "--all").splitlines():
+    headers, message = git_output("--no-replace-objects", "cat-file", "commit", object_id.decode()).split(b"\n\n", 1)
+    parents = [line.removeprefix(b"parent ") for line in headers.splitlines() if line.startswith(b"parent ")]
+    check_patterns("git metadata", message)
+    if len(parents) == 2:
+        canonical = b"Merge " + parents[1] + b" into " + parents[0]
+        if message in (canonical, canonical + b"\n"):
+            message = message.replace(parents[1], b"", 1).replace(parents[0], b"", 1)
+    for number, line in enumerate(message.decode(errors="replace").splitlines(), start=1):
+        check_hex(f"git metadata:{number}", line)
+
+for label, data in (("git authors", authors), ("git tags", tags)):
     for number, line in enumerate(data.decode(errors="replace").splitlines(), start=1):
         check_hex(f"{label}:{number}", line)
 

@@ -273,3 +273,173 @@ Before any image bump, repeat the smoke checks: block the MDBList host and confi
 rows fail to save, disabled rows save, and enabled rows return after access is restored; measure
 the quota; check logs and API responses for key leaks; and confirm the exact cache TTL and that
 a repeated first-page request uses no extra calls.
+
+## Locked staged promotion
+
+Use this entrypoint for a reviewed upgrade. Do not run `make deploy` or `make sync` during
+this procedure. Use absolute paths without symbolic links. Keep the reviewed non-secret
+stage, private render tree, and transactions outside production and outside each other.
+Create each private parent with mode 0700. Transaction and private render directories must
+not exist before the helper creates them.
+
+### Bootstrap the guards
+
+Review the three guard files and their stage identity separately before bootstrap.
+Establish a cooperative maintenance exclusion window for every deploy, sync, backup,
+restore, and configuration writer, including scheduled automation. `--maintenance-window`
+asserts that this exclusion already exists; the helper does not stop automation or services.
+Keep the exclusion in place across interruption until bootstrap or recovery is verified.
+The old deploy script cannot enforce the new admission rule before it has been installed.
+
+Run the reviewed helper from outside production. This bootstrap changes only `with-lock.sh`,
+`staged-promotion.py`, and `deploy.sh`. It acquires the real production `.stack.lock`, verifies
+the old tree and reviewed stage identities, and retains the exact old guard presence, bytes,
+and permissions outside production. It preserves private files, data, and the lock inode.
+It invokes no service commands.
+
+```sh
+REVIEWED=/srv/reviewed-stage
+PRODUCTION=/srv/stack
+TRANSACTIONS=/srv/stack-transactions
+mkdir -m 700 "$TRANSACTIONS"
+BOOTSTRAP_STAGE_SHA=$(python3 "$REVIEWED/ops/staged-promotion.py" identity --root "$REVIEWED")
+BOOTSTRAP_OLD_TREE_SHA=$(python3 "$REVIEWED/ops/staged-promotion.py" identity --root "$PRODUCTION")
+```
+
+Review these identities and the guard diff before running the next command.
+
+```sh
+python3 "$REVIEWED/ops/staged-promotion.py" bootstrap \
+  --production "$PRODUCTION" --stage "$REVIEWED" \
+  --transaction "$TRANSACTIONS/bootstrap" \
+  --stage-sha "$BOOTSTRAP_STAGE_SHA" --baseline-sha "$BOOTSTRAP_OLD_TREE_SHA" \
+  --maintenance-window
+for guard in with-lock.sh staged-promotion.py deploy.sh; do
+  cmp "$REVIEWED/ops/$guard" "$PRODUCTION/ops/$guard" || exit 1
+done
+test ! -e "$PRODUCTION/.promotion-state"
+```
+
+Each file is published with an atomic rename; the deployment admission guard is last.
+The set is protected by durable transaction state, not one atomic operation across three
+independent files. Release the maintenance exclusion only after all verification succeeds.
+A SIGKILL or power loss leaves the pending marker and transaction available for recovery.
+Do not continue bootstrap or deploy automatically. While maintaining the exclusion, run:
+
+```sh
+python3 "$REVIEWED/ops/staged-promotion.py" recover \
+  --production "$PRODUCTION" --transaction "$TRANSACTIONS/bootstrap"
+```
+
+Recovery takes the same lock and restores old guards, removing any that were originally
+absent. It can be retried after interruption. It refuses changed snapshots, unrelated later
+guard edits, and changes to other managed files. Verify recovery before releasing the
+exclusion; another bootstrap needs a fresh separately reviewed baseline and transaction.
+
+### Prepare the candidate hash and promote
+
+The non-secret stage must not contain `.env`, household or configuration credentials,
+data, restoration directories, Git metadata, or lock files. The helper rejects symbolic
+links, hard links, and special files in managed paths. Tree identities include file bytes,
+names, and permissions. The stage must retain the same three installed guards; promotion
+refuses changes to them and does not rewrite unchanged managed files.
+
+Capture the old tree and rendered hash after bootstrap. Freeze and review the candidate
+stage and record its identity. The `render` command verifies both tree identities under
+the production lock, then creates a separate owner-only PRIVATE tree containing the stage
+and a mode-0600 copy of production `.env`. It performs metadata rendering only, without
+creating data, promoting files, or changing services. It prints only the candidate hash.
+Never promote or share this private tree; the promotion entrypoint rejects its `.env`.
+
+```sh
+OLD_TREE_SHA=$(python3 "$REVIEWED/ops/staged-promotion.py" identity --root "$PRODUCTION")
+OLD_COMPOSE_SHA=$(bash "$PRODUCTION/ops/compose-config-sha.sh" "$PRODUCTION")
+STAGE_SHA=$(python3 "$REVIEWED/ops/staged-promotion.py" identity --root "$REVIEWED")
+mkdir -m 700 /srv/private-renders
+PRIVATE_RENDER=/srv/private-renders/upgrade
+CANDIDATE_COMPOSE_SHA=$(python3 "$REVIEWED/ops/staged-promotion.py" render \
+  --production "$PRODUCTION" --stage "$REVIEWED" --private-render "$PRIVATE_RENDER" \
+  --stage-sha "$STAGE_SHA" --baseline-sha "$OLD_TREE_SHA")
+```
+
+The private render uses the same project, profiles, environment, and Compose files as
+production. It passes `--project-directory "$PRODUCTION"` to Compose and absolute paths
+for the private input files. Thus relative bind mounts use production paths. It does not
+replace path strings in rendered secrets. Keep environment values out of stdout, arguments,
+and evidence. Treat the private render tree as secret material and retain it owner-only.
+
+After review, promote only the NONSECRET stage. The helper verifies that the resulting
+production render equals `CANDIDATE_COMPOSE_SHA` before deployment. The final command below
+checks the same equivalence independently after promotion.
+
+```sh
+python3 "$REVIEWED/ops/staged-promotion.py" promote \
+  --production "$PRODUCTION" --stage "$REVIEWED" \
+  --transaction "$TRANSACTIONS/upgrade" \
+  --stage-sha "$STAGE_SHA" --baseline-sha "$OLD_TREE_SHA" \
+  --baseline-compose-sha "$OLD_COMPOSE_SHA" \
+  --candidate-compose-sha "$CANDIDATE_COMPOSE_SHA"
+test "$CANDIDATE_COMPOSE_SHA" = "$(bash "$PRODUCTION/ops/compose-config-sha.sh" "$PRODUCTION")"
+```
+
+Add `--no-tunnel` to select the existing internal deployment and probe behavior.
+The process acquires the production `.stack.lock` with the operating system flock API.
+It ignores inherited lock-held markers and rejects a foreign lockfile override. The lock
+covers baseline checks, copying, final rendering, deployment, stopped-writer backup,
+startup, and probes. Nested deploy and backup commands inherit this owned lock.
+
+The transaction retains verified copies of old and candidate non-secret files. Promotion
+preserves private files, writer data, restoration directories, and the lock inode. A
+persistent `.promotion-state` blocks ordinary deployment while the transaction is pending.
+A failed or interrupted transaction never resumes deployment automatically.
+
+### Reconcile completed transactions
+
+A crash can occur after the durable phase becomes `complete` and before marker cleanup
+finishes. Use the reviewed helper and the exact transaction directory:
+
+```sh
+python3 "$REVIEWED/ops/staged-promotion.py" reconcile \
+  --production "$PRODUCTION" --transaction "$TRANSACTIONS/upgrade"
+```
+
+Use `$TRANSACTIONS/bootstrap` for a completed bootstrap. Reconciliation acquires the actual
+project lock. It verifies the transaction schema, root, lock identity, snapshots, journal,
+and expected completed tree. For a completed promotion it also checks the rendered hash.
+It clears only the matching marker and never restores files or repeats deployment, backup,
+startup, probes, or migrations. It is safe to retry if marker cleanup itself was interrupted,
+including after unlink but before directory fsync. A changed completed tree refuses without
+mutation. Do not remove the marker manually or run file rollback against a completed state.
+
+### Recover interrupted file transitions
+
+Each live path mutation has a durable intent before individually atomic publication,
+deletion, directory creation, or mode change. The journal records the exact checkpoint and
+at most one pending transition. Before any restoration, recovery verifies both snapshots
+and the journal, then requires the live tree to equal that checkpoint or the single pending
+transition's result. An unrelated edit, addition, deletion, or mode change refuses before
+restoration. Resolve such drift through separately reviewed recovery; do not overwrite the
+journal with the current tree. Unsupported schemas and damaged evidence also refuse.
+
+If deployment has not started, use the installed reviewed helper to restore the exact old
+managed file set. This removes candidate additions and restores deleted files. Recovery
+acquires the same production lock and can be retried if interrupted. It starts no services.
+A durable `recovered` transaction can be retried with `recover` or finalized with `reconcile`;
+both verify the old tree and finish marker cleanup without replaying file restoration.
+
+```sh
+python3 /path/to/reviewed/ops/staged-promotion.py recover \
+  --production /srv/stack --transaction /srv/stack-transactions/upgrade
+```
+
+If the durable phase is `deploying`, deployment may have started or applied migrations.
+The helper refuses file-only recovery and keeps the deployment gate closed. Use the
+separately rehearsed stopped-writer recovery: stop the candidate writer under the project
+lock, retain candidate data, restore independent old writer data and old files, then start
+only the retained old image with project-scoped `up -d --no-deps --pull never aiostreams`.
+Run probes separately. Clear the pending marker only after that manual recovery has been
+verified. Do not use `deploy.sh` or `restore.sh` for this offline start. M0 does not qualify
+migration compatibility, restore old writer data, or implement the M1 rollback rehearsal.
+
+Retain transaction evidence and old files through acceptance and the required rollback
+window. Do not place transactions inside any tree managed by sync.

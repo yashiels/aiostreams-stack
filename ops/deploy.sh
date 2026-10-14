@@ -28,6 +28,9 @@ MIN_FREE_GB=10
   exit 1
 }
 
+take_lock "${ORIGINAL_ARGS[@]}"
+python3 ./ops/staged-promotion.py admit --production "$PWD"
+
 ./ops/env-check.py .env >/dev/null
 compose_sha="$(compose_config_sha "$PWD")"
 [ "$PRINT_CONFIG_SHA" -eq 0 ] || { printf '%s\n' "$compose_sha"; exit 0; }
@@ -36,7 +39,6 @@ if [ -n "${EXPECTED_COMPOSE_SHA256:-}" ] && [ "$compose_sha" != "$EXPECTED_COMPO
   exit 1
 fi
 
-take_lock "${ORIGINAL_ARGS[@]}"
 load_compose_command "$PWD"
 tmdb_enabled=0
 for profile in "${compose_profiles[@]}"; do
