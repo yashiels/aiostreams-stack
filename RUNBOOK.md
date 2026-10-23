@@ -69,9 +69,17 @@ snapshot directory has mode 0700. Each snapshot file has mode 0600. Do not share
 1. Look in the AIOStreams logs for provider errors.
 2. Make sure that each configured addon answers.
 
-The local `tmdb-addon` profile is off. Its pinned version needs MongoDB analytics when it
-starts. To use a compatible image, add `COMPOSE_PROFILES=tmdb` and the matching addon URL at the
-same time. To stop using it, remove both at the same time.
+The local `tmdb-addon` profile is off. The profile builds a local image from the pinned upstream
+commit on Node 24.22.1. To enable the profile, set `COMPOSE_PROFILES=tmdb`, set `FANART_API_KEY`,
+and set the matching addon URL at the same time. Do not leave `FANART_API_KEY` empty. Deploy
+builds the image when the profile is on. To build the image yourself, run:
+
+```sh
+docker compose -p media-gateway --env-file .env --env-file versions.env -f compose.yml --profile tmdb build tmdb-addon
+```
+
+To stop the profile, remove `COMPOSE_PROFILES=tmdb`, `FANART_API_KEY`, and the addon URL at the
+same time.
 
 ## Backup and restore
 

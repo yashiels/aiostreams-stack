@@ -44,6 +44,11 @@ services:
 
   tmdb-addon:
     image: ${TMDB_ADDON_IMAGE}
+    pull_policy: build
+    build:
+      context: images/tmdb-addon
+      args:
+        TMDB_ADDON_REF: ${TMDB_ADDON_REF}
     profiles: [tmdb]
     restart: always
     mem_limit: 512m
@@ -51,6 +56,7 @@ services:
     logging: *logging
     environment:
       TMDB_API: ${TMDB_API_KEY}
+      FANART_API: ${FANART_API_KEY:-}
       PORT: "1337"
       HOST_NAME: http://tmdb-addon:1337
       NODE_ENV: production
