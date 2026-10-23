@@ -119,7 +119,8 @@ restarts in a loop, the test stops and prints the last log lines.
   stays in snapshots. This is a known limit. Keep these files private.
 
 - Web browsers cannot play many MKV, HEVC, and DTS files. Use a native app.
-- The `tmdb-addon` profile is off. Its pinned release needs MongoDB. AIOStreams uses its public
+- The `tmdb-addon` profile is off. It builds a local image from the pinned upstream commit on
+  Node 24.22.1. Set `FANART_API_KEY` when you enable the profile. AIOStreams uses its public
   metadata source.
 - Some scraper providers block data center IP ranges. Results can change with the host network.
 - Streams from the public Comet and StremThru instances go through those services to the debrid

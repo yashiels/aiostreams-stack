@@ -15,6 +15,8 @@ patterns = [base64.b64decode(line).lower() for line in (root / "ops/leak-pattern
 hex_run = re.compile(r"[0-9a-fA-F]{32,}")
 image_line = re.compile(r"[A-Z0-9_]+_IMAGE=.*@sha256:[0-9a-f]{64}")
 digest = re.compile(r"@sha256:[0-9a-f]{64}")
+tmdb_ref = re.compile(r"(TMDB_ADDON_REF=)[0-9a-fA-F]{40}\b")
+tmdb_dockerfile = "images/tmdb-addon/Dockerfile"
 failures = []
 
 
@@ -25,8 +27,12 @@ def check_patterns(label, data):
             failures.append(f"{label}: blocked pattern {base64.b64encode(pattern).decode()}")
 
 
-def check_hex(label, line, allow_digest=False):
+def check_hex(label, line, allow_digest=False, allow_tmdb_ref=False, allow_tmdb_digest=False):
     candidate = digest.sub("", line) if allow_digest and image_line.fullmatch(line) else line
+    if allow_tmdb_ref:
+        candidate = tmdb_ref.sub(r"\1", candidate)
+    if allow_tmdb_digest:
+        candidate = digest.sub("", candidate)
     if hex_run.search(candidate):
         failures.append(f"{label}: disallowed hexadecimal run")
 
@@ -41,7 +47,13 @@ for path in root.rglob("*"):
     data = path.read_bytes()
     check_patterns(relative, data)
     for number, line in enumerate(data.decode(errors="replace").splitlines(), start=1):
-        check_hex(f"{relative}:{number}", line, relative == "versions.env")
+        check_hex(
+            f"{relative}:{number}",
+            line,
+            relative == "versions.env",
+            relative in {"versions.env", tmdb_dockerfile},
+            relative == tmdb_dockerfile,
+        )
 
 
 def git_output(*args):
@@ -74,7 +86,13 @@ for number, line in enumerate(history.decode(errors="replace").splitlines(), sta
     if not in_hunk or not line.startswith((" ", "+", "-")) or line.startswith(("+++", "---")):
         continue
     content = line[1:]
-    check_hex(f"git history:{number}", content, history_path == "versions.env")
+    check_hex(
+        f"git history:{number}",
+        content,
+        history_path == "versions.env",
+        history_path in {"versions.env", tmdb_dockerfile},
+        history_path == tmdb_dockerfile,
+    )
 
 metadata = git_output("log", "--all", "--format=%s %b")
 authors = git_output("log", "--all", "--format=%an <%ae> %cn <%ce>")
