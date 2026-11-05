@@ -38,6 +38,7 @@ jobs:
           "$actionlint_path"
       - name: CLI help
         run: |
+          python3 ops/browse-tuning.py --help
           python3 ops/bootstrap.py --help
           python3 ops/verify.py --help
           python3 ops/config-snapshot.py --help

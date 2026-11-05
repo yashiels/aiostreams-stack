@@ -389,72 +389,78 @@ class GuardedWriteTests(unittest.TestCase):
         self.assertRegex(path.name, r"^person-\d{8}T\d{6}Z-[0-9a-f]{8}\.json$")
         self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
 
-    def test_post_write_mismatch_rolls_back_and_verifies(self):
+    def test_post_write_mismatch_preserves_later_edits_without_rollback(self):
         self.http.call.side_effect = [
             {},
             response({**self.desired, "unmanaged": 2}),
-            {},
-            response(self.before),
         ]
-        with self.assertRaisesRegex(
-            SystemExit, "verification failed; rollback verified"
-        ):
+        with self.assertRaisesRegex(SystemExit, "uncertain; unexpected configuration"):
             self.write()
         self.assertEqual(
-            [call.args[0] for call in self.http.call.call_args_list],
-            ["PUT", "GET", "PUT", "GET"],
+            [call.args[0] for call in self.http.call.call_args_list], ["PUT", "GET"]
         )
-        self.assertEqual(
-            self.http.call.call_args_list[2].args[2], {"config": self.before}
-        )
+        self.assertEqual(len(list(Path(self.directory.name).glob("*.json"))), 1)
 
     def test_ambiguous_put_desired_prewrite_and_neither(self):
-        for observed, suffix, rollback in (
-            (self.desired, None, False),
-            (self.before, "no change was made", False),
-            ({"unexpected": 1}, "rollback verified", True),
+        for observed, suffix in (
+            (self.desired, None),
+            (self.before, "no change was made"),
+            ({"unexpected": 1}, "uncertain; unexpected configuration"),
         ):
             with self.subTest(observed=observed):
                 self.http.reset_mock()
                 self.http.call.side_effect = [
                     common.RequestError("PUT", None, True),
                     response(observed),
-                ] + ([{}, response(self.before)] if rollback else [])
+                ]
                 if suffix:
                     with self.assertRaisesRegex(SystemExit, suffix):
                         self.write()
                 else:
                     self.assertEqual(self.write(), response(self.desired))
-                self.assertEqual(self.http.call.call_count, 4 if rollback else 2)
+                self.assertEqual(self.http.call.call_count, 2)
 
-    def test_reconciliation_get_failure_rolls_back_after_all_retries(self):
+    def test_reconciliation_get_failure_retains_snapshot_without_rollback(self):
         for ambiguous in (True, False):
+            self.http.reset_mock()
             self.http.call.side_effect = (
-                ([common.RequestError("PUT", None, True)] if ambiguous else [{}])
-                + [common.RequestError("GET", 503)] * 4
-                + [{}, response(self.before)]
-            )
+                [common.RequestError("PUT", None, True)] if ambiguous else [{}]
+            ) + [common.RequestError("GET", 503)] * 4
             with (
                 patch.object(common.time, "sleep") as sleep,
-                self.assertRaisesRegex(SystemExit, "rollback verified"),
+                self.assertRaisesRegex(SystemExit, "configuration state uncertain"),
             ):
                 self.write()
             self.assertEqual(
                 [call.args[0] for call in sleep.call_args_list], [5, 15, 30]
             )
             self.assertEqual(
-                self.http.call.call_args_list[-2].args[2], {"config": self.before}
+                [call.args[0] for call in self.http.call.call_args_list],
+                ["PUT", "GET", "GET", "GET", "GET"],
             )
+            self.assertTrue(list(Path(self.directory.name).glob("*.json")))
 
     def test_rollback_put_or_verification_failure_reports_both_and_exact_restore(self):
         for rollback in (
-            [common.RequestError("PUT", 400, True)],
+            [common.RequestError("PUT", 400, True), response({"wrong": True})],
             [{}, response({"wrong": True})],
             [{}, common.RequestError("GET", 403)],
         ):
-            self.http.call.side_effect = [{}, response({"wrong": True}), *rollback]
+            self.http.reset_mock()
+            self.http.call.side_effect = [response(self.desired), *rollback]
             with self.assertRaises(SystemExit) as caught:
-                self.write()
+                bootstrap.rollback_config(
+                    self.http,
+                    {},
+                    self.before,
+                    TARGET,
+                    Path(self.directory.name) / "retained.json",
+                    "full configuration verification failed",
+                    expected=self.desired,
+                )
+            self.assertEqual(
+                [call.args[0] for call in self.http.call.call_args_list].count("PUT"), 1
+            )
             message = str(caught.exception)
             self.assertIn(
                 "full configuration verification failed; rollback failed", message

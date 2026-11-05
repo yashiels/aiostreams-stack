@@ -44,7 +44,7 @@ class Settings:
         env_file = self.root / ".env"
         if not env_file.is_file():
             return {}
-        exporter = self.root / "ops" / "env-export.py"
+        exporter = Path(__file__).with_name("env-export.py")
         output = subprocess.run(
             [sys.executable, str(exporter), str(env_file)],
             capture_output=True,
@@ -160,14 +160,29 @@ class Http:
                 status = error.code
                 error.close()
                 raise RequestError(method, status, method == "PUT") from None
-            except (urllib.error.URLError, OSError, http.client.HTTPException):
+            except (
+                urllib.error.URLError,
+                OSError,
+                http.client.HTTPException,
+                json.JSONDecodeError,
+                UnicodeError,
+            ):
                 raise RequestError(method, None, method == "PUT") from None
 
 
 def reconciliation_get(http, headers):
     for attempt, delay in enumerate((5, 15, 30, None)):
         try:
-            return http.call("GET", "/api/v1/user", headers=headers, retry_429=False)
+            response = http.call(
+                "GET", "/api/v1/user", headers=headers, retry_429=False
+            )
+            if (
+                not isinstance(response, dict)
+                or not isinstance(response.get("data"), dict)
+                or not isinstance(response["data"].get("userData"), dict)
+            ):
+                raise RequestError("GET")
+            return response
         except RequestError as error:
             if delay is None or (
                 error.status is not None and error.status != 429 and error.status < 500

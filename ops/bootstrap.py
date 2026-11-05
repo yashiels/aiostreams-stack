@@ -85,7 +85,11 @@ def desired_jellyfin(household, current):
     primary.update(name=admins[0]["name"], avatar=avatar_url(admins[0]))
     desired = dict(current)
     desired.update(
-        resolveOnOpen=True,
+        resolveOnOpen=(
+            current["resolveOnOpen"]
+            if isinstance(current.get("resolveOnOpen"), bool)
+            else True
+        ),
         maxVersions=10,
         segments=True,
         primary=primary,
@@ -414,70 +418,78 @@ def verify_config(observed, desired, before, is_main):
         raise SystemExit("standalone Jellyfin verification failed")
 
 
-def rollback_config(http, headers, before, target, path, error):
+def rollback_config(http, headers, before, target, path, error, expected=None):
     try:
-        http.call("PUT", "/api/v1/user", {"config": before}, headers=headers)
+        if expected is None:
+            raise SystemExit("rollback refused: expected candidate is required")
+        observed = reconciliation_get(http, headers)["data"]["userData"]
+        if canonical_config(observed) != canonical_config(expected):
+            raise SystemExit(
+                "rollback refused: current configuration differs from candidate"
+            )
+        try:
+            http.call(
+                "PUT",
+                "/api/v1/user",
+                {"config": before},
+                headers=headers,
+                retry_429=False,
+            )
+        except RequestError:
+            pass
         restored = reconciliation_get(http, headers)["data"]["userData"]
         verify_config(restored, before, before, target[3])
     except (RequestError, SystemExit) as rollback_error:
         command = f"python3 ops/config-snapshot.py restore --config {target[0]} {shlex.quote(str(path))}"
         raise SystemExit(
-            f"{error}; rollback failed: {rollback_error}; emergency snapshot: {path}\n{command}"
+            f"{error}; rollback failed: {rollback_error}; emergency snapshot: {path}\n"
+            f"compare current state before emergency restore: {command}"
         ) from None
     raise SystemExit(f"{error}; rollback verified; emergency snapshot: {path}")
 
 
-def guarded_write(http, headers, current, desired, target, directory=None):
+def guarded_write(
+    http, headers, current, desired, target, directory=None, settings=None
+):
     path = snapshot_path(
         directory or os.environ.get("SNAPSHOT_DIR", "~/media-gateway-restore"),
         target[0],
     )
-    save_snapshot(path, current, target, Settings(ROOT).get("MDBLIST_API_KEY"))
+    settings = settings if settings is not None else Settings(ROOT)
+    save_snapshot(path, current, target, settings.get("MDBLIST_API_KEY"))
     print(path)
+    forward_error = None
     try:
-        http.call("PUT", "/api/v1/user", {"config": desired}, headers=headers)
+        http.call(
+            "PUT",
+            "/api/v1/user",
+            {"config": desired},
+            headers=headers,
+            retry_429=False,
+        )
     except RequestError as error:
-        try:
-            updated = reconciliation_get(http, headers)
-        except RequestError as get_error:
-            rollback_config(
-                http,
-                headers,
-                current,
-                target,
-                path,
-                f"{error}; reconciliation failed: {get_error}",
-            )
-        observed = updated["data"]["userData"]
-        if canonical_config(observed) != canonical_config(desired):
-            if canonical_config(observed) == canonical_config(current):
-                raise SystemExit(
-                    f"{error}; no change was made; emergency snapshot: {path}"
-                ) from None
-            rollback_config(
-                http,
-                headers,
-                current,
-                target,
-                path,
-                f"{error}; reconciliation found an unexpected configuration",
-            )
-    else:
-        try:
-            updated = reconciliation_get(http, headers)
-        except RequestError as error:
-            rollback_config(
-                http,
-                headers,
-                current,
-                target,
-                path,
-                f"verification GET failed: {error}",
-            )
+        forward_error = str(error)
     try:
-        verify_config(updated["data"]["userData"], desired, current, target[3])
+        updated = reconciliation_get(http, headers)
+    except RequestError as error:
+        raise SystemExit(
+            f"{forward_error or 'verification failed'}; configuration state uncertain; "
+            f"reconciliation failed: {error}; emergency snapshot: {path}"
+        ) from None
+    observed = updated["data"]["userData"]
+    if canonical_config(observed) != canonical_config(desired):
+        if canonical_config(observed) == canonical_config(current):
+            raise SystemExit(
+                f"{forward_error or 'verification failed'}; no change was made; emergency snapshot: {path}"
+            ) from None
+        raise SystemExit(
+            f"{forward_error or 'verification failed'}; configuration state uncertain; "
+            f"unexpected configuration; emergency snapshot: {path}"
+        ) from None
+    try:
+        verify_config(observed, desired, current, target[3])
     except SystemExit as error:
-        rollback_config(http, headers, current, target, path, error)
+        rollback_config(http, headers, current, target, path, error, expected=desired)
     return updated
 
 
