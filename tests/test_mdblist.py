@@ -668,12 +668,12 @@ class MainTests(unittest.TestCase):
                         response(current),
                     ]
                 elif failure == "rollback":
-                    client.call.side_effect = [{}, response({}), {}, response(current)]
+                    client.call.side_effect = [response(desired), {}, response(current)]
                 else:
                     client.call.side_effect = [
-                        {},
-                        response({}),
+                        response(desired),
                         common.RequestError("PUT", 403),
+                        response({}),
                     ]
                 with (
                     tempfile.TemporaryDirectory() as directory,
@@ -681,9 +681,22 @@ class MainTests(unittest.TestCase):
                 ):
                     settings.return_value.get.return_value = KEY
                     with self.assertRaises(SystemExit) as caught:
-                        bootstrap.guarded_write(
-                            client, {}, current, desired, TARGET, directory
-                        )
+                        if failure == "http":
+                            bootstrap.guarded_write(
+                                client, {}, current, desired, TARGET, directory
+                            )
+                        else:
+                            path = common.snapshot_path(directory, TARGET[0])
+                            common.save_snapshot(path, current, TARGET, KEY)
+                            bootstrap.rollback_config(
+                                client,
+                                {},
+                                current,
+                                TARGET,
+                                path,
+                                "verification failed",
+                                expected=desired,
+                            )
                     print(str(caught.exception), file=sys.stderr)
                     saved = next(Path(directory).glob("*.json")).read_text()
                     self.assertNotIn(KEY, saved)
