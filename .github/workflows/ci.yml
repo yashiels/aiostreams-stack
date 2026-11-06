@@ -43,6 +43,7 @@ jobs:
           python3 ops/verify.py --help
           python3 ops/config-snapshot.py --help
           python3 ops/check-catalogs.py --help
+          python3 ops/nuvio-watch-sync.py --help
       - name: Secret paths remain untracked
         run: |
           if git ls-files --error-unmatch .env; then exit 1; fi

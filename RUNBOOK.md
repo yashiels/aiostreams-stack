@@ -451,3 +451,32 @@ migration compatibility, restore old writer data, or implement the M1 rollback r
 
 Retain transaction evidence and old files through acceptance and the required rollback
 window. Do not place transactions inside any tree managed by sync.
+
+## Native watch history to Nuvio
+
+Use `ops/nuvio-watch-sync.py` for one-way additions and updates from the primary native persona.
+Use Python 3.11 or later for this helper.
+Inject `NUVIO_EMAIL` and `NUVIO_PASSWORD` into the child environment through your credential manager.
+Run the default dry-run first:
+
+```sh
+python3 ops/nuvio-watch-sync.py --profile-id 1 --profile-name 'Example Profile' \
+  --native-user 'Example User' --ssh-host user@host --container media-gateway-aiostreams-1 \
+  --state-dir /tmp/example-nuvio-sync
+```
+
+Check the source completeness, cloud counts, and planned changes.
+Repeat the command with `--apply` to write and check the cloud state.
+Repeat the dry-run to check that no changes remain.
+The script reads the native database without writes.
+It preserves unrelated cloud records and newer timestamps.
+It keeps unknown duration values at zero.
+It does not propagate deletions or match aliases across addons.
+
+A local lock prevents overlapping runs that use the same state directory.
+Nuvio provides no conditional write protection.
+Another client can change cloud state between the final check and the write.
+An overwritten update can escape detection when the resulting records equal the planned records.
+On failure, inspect the counts with a new dry-run before another apply.
+The script never retries a mutation automatically.
+Device confirmation requires the same Nuvio account and profile.
